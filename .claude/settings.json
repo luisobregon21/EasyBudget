@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//Users/luisobregon/.claude/plugins/cache/claude-plugins-official/superpowers/5.1.0/skills/brainstorming/**)",
+      "Bash(/Users/luisobregon/.claude/plugins/cache/claude-plugins-official/superpowers/5.1.0/skills/brainstorming/scripts/start-server.sh --project-dir /Users/luisobregon/projects/personal_projects/EasyBudget)",
+      "Bash(python3 -)",
+      "Bash(npx shadcn@latest init --defaults --yes)"
+    ]
+  }
+}

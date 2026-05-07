@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EasyBudget — Dashboard Mockup</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #0d0d1a;
+    color: #e2e8f0;
+    min-height: 100vh;
+    padding: 24px;
+  }
+
+  .page-header {
+    text-align: center;
+    margin-bottom: 32px;
+  }
+  .page-header h1 {
+    background: linear-gradient(90deg, #f59e0b, #ec4899);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    font-size: 22px; font-weight: 800; letter-spacing: 2px;
+  }
+  .page-header p { color: #7c6da0; font-size: 13px; margin-top: 6px; }
+
+  /* DESKTOP LAYOUT */
+  .app-shell {
+    max-width: 1100px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    grid-template-rows: auto 1fr;
+    gap: 0;
+    background: linear-gradient(135deg, #1e0a3c 0%, #2d1060 50%, #1e1b4b 100%);
+    border-radius: 20px;
+    overflow: hidden;
+    border: 1px solid rgba(167, 139, 250, 0.15);
+    box-shadow: 0 25px 80px rgba(0,0,0,0.6);
+    min-height: 640px;
+  }
+
+  /* SIDEBAR */
+  .sidebar {
+    grid-row: 1 / 3;
+    background: rgba(15, 5, 40, 0.7);
+    border-right: 1px solid rgba(167, 139, 250, 0.12);
+    padding: 24px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .sidebar-logo {
+    background: linear-gradient(90deg, #f59e0b, #ec4899);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    font-weight: 800; font-size: 15px; letter-spacing: 1.5px;
+    padding: 0 8px 20px;
+    border-bottom: 1px solid rgba(167,139,250,0.1);
+    margin-bottom: 12px;
+  }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px; border-radius: 10px;
+    color: #7c6da0; font-size: 13px; cursor: pointer;
+    transition: all 0.2s;
+  }
+  .nav-item.active {
+    background: linear-gradient(135deg, rgba(245,158,11,0.18), rgba(236,72,153,0.12));
+    border: 1px solid rgba(245,158,11,0.25);
+    color: #fbbf24;
+  }
+  .nav-item .nav-icon { font-size: 16px; }
+  .sidebar-spacer { flex: 1; }
+
+  /* TOPBAR */
+  .topbar {
+    grid-column: 2;
+    padding: 20px 28px 0;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .topbar-left h2 { color: #e2e8f0; font-size: 20px; font-weight: 700; }
+  .topbar-left p { color: #7c6da0; font-size: 12px; margin-top: 2px; }
+  .month-nav {
+    display: flex; align-items: center; gap: 12px;
+    background: rgba(255,255,255,0.05); border-radius: 10px; padding: 8px 14px;
+    border: 1px solid rgba(167,139,250,0.15);
+  }
+  .month-nav span { color: #c4b5fd; font-size: 13px; font-weight: 600; }
+  .month-nav button {
+    background: none; border: none; color: #7c6da0; cursor: pointer; font-size: 14px; padding: 0 4px;
+  }
+
+  /* MAIN CONTENT */
+  .main-content {
+    grid-column: 2;
+    padding: 20px 28px 28px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  /* HERO CARD */
+  .hero-card {
+    background: linear-gradient(135deg, rgba(245,158,11,0.12), rgba(236,72,153,0.12));
+    border: 1px solid rgba(245,158,11,0.25);
+    border-radius: 16px;
+    padding: 22px 26px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 16px;
+    align-items: center;
+  }
+  .hero-label { color: #c4b5fd; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+  .hero-amount {
+    background: linear-gradient(90deg, #fbbf24, #f472b6);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    font-size: 38px; font-weight: 800; line-height: 1;
+  }
+  .hero-sub { color: #94a3b8; font-size: 12px; margin-top: 6px; }
+  .hero-right { text-align: right; }
+  .balance-tag {
+    background: rgba(34,197,94,0.15); border: 1px solid rgba(34,197,94,0.3);
+    color: #4ade80; font-size: 11px; border-radius: 20px; padding: 4px 12px; display: inline-block; margin-bottom: 6px;
+  }
+  .balance-amount { color: #e2e8f0; font-size: 22px; font-weight: 700; }
+  .balance-label { color: #7c6da0; font-size: 11px; }
+
+  /* PROGRESS BAR */
+  .progress-section { margin-top: 14px; }
+  .progress-label-row {
+    display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;
+  }
+  .progress-label-row span { color: #94a3b8; font-size: 11px; }
+  .progress-track {
+    height: 8px; background: rgba(255,255,255,0.08); border-radius: 4px; overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%; border-radius: 4px;
+    background: linear-gradient(90deg, #f59e0b, #ec4899);
+  }
+
+  /* ALLOCATION PILLS */
+  .allocation-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+  }
+  .alloc-card {
+    border-radius: 14px; padding: 16px;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .alloc-card.savings { background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.25); }
+  .alloc-card.bills   { background: rgba(236,72,153,0.1); border: 1px solid rgba(236,72,153,0.25); }
+  .alloc-card.wants   { background: rgba(139,92,246,0.1); border: 1px solid rgba(139,92,246,0.25); }
+  .alloc-header { display: flex; justify-content: space-between; align-items: center; }
+  .alloc-icon { font-size: 18px; }
+  .alloc-pct { font-size: 11px; border-radius: 10px; padding: 2px 8px; font-weight: 600; }
+  .savings .alloc-pct { background: rgba(251,191,36,0.2); color: #fbbf24; }
+  .bills   .alloc-pct { background: rgba(236,72,153,0.2); color: #f472b6; }
+  .wants   .alloc-pct { background: rgba(139,92,246,0.2); color: #a78bfa; }
+  .alloc-name { color: #94a3b8; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .alloc-amount { font-size: 20px; font-weight: 700; }
+  .savings .alloc-amount { color: #fef3c7; }
+  .bills   .alloc-amount { color: #fbcfe8; }
+  .wants   .alloc-amount { color: #ddd6fe; }
+  .alloc-sub { color: #7c6da0; font-size: 11px; }
+  .alloc-bar { height: 4px; background: rgba(255,255,255,0.08); border-radius: 2px; margin-top: 4px; overflow: hidden; }
+  .alloc-bar-fill { height: 100%; border-radius: 2px; }
+  .savings .alloc-bar-fill { background: #fbbf24; width: 45%; }
+  .bills   .alloc-bar-fill { background: #f472b6; width: 72%; }
+  .wants   .alloc-bar-fill { background: #a78bfa; width: 12%; }
+
+  /* TWO COLUMN */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+  /* EXPENSE LIST */
+  .panel {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(167,139,250,0.1);
+    border-radius: 14px;
+    padding: 18px;
+  }
+  .panel-header {
+    display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;
+  }
+  .panel-title { color: #c4b5fd; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
+  .panel-action { color: #7c6da0; font-size: 11px; cursor: pointer; }
+  .expense-item {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 9px 0; border-bottom: 1px solid rgba(255,255,255,0.05);
+  }
+  .expense-item:last-child { border-bottom: none; }
+  .exp-left { display: flex; align-items: center; gap: 10px; }
+  .exp-icon {
+    width: 32px; height: 32px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center; font-size: 15px;
+    background: rgba(255,255,255,0.06);
+  }
+  .exp-name { color: #e2e8f0; font-size: 13px; font-weight: 500; }
+  .exp-tag { color: #7c6da0; font-size: 11px; margin-top: 1px; }
+  .exp-amount { font-size: 13px; font-weight: 600; }
+  .exp-amount.out { color: #f87171; }
+  .exp-amount.in  { color: #4ade80; }
+
+  /* SUBSCRIPTIONS */
+  .sub-item {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05);
+  }
+  .sub-item:last-child { border-bottom: none; }
+  .sub-name { color: #e2e8f0; font-size: 13px; }
+  .sub-date { color: #7c6da0; font-size: 11px; }
+  .sub-amount { color: #fbbf24; font-size: 13px; font-weight: 600; }
+
+  /* ADD BUTTON */
+  .fab {
+    position: fixed; bottom: 24px; right: 24px;
+    width: 52px; height: 52px; border-radius: 16px;
+    background: linear-gradient(135deg, #f59e0b, #ec4899);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px; box-shadow: 0 8px 24px rgba(245,158,11,0.4);
+    cursor: pointer;
+  }
+
+  /* MOBILE PREVIEW NOTE */
+  .preview-note {
+    text-align: center;
+    color: #7c6da0;
+    font-size: 12px;
+    margin-top: 16px;
+    padding: 12px;
+    background: rgba(255,255,255,0.03);
+    border-radius: 10px;
+    border: 1px solid rgba(167,139,250,0.1);
+  }
+
+  /* MOBILE SIDE BY SIDE */
+  .mobile-preview {
+    max-width: 320px;
+    margin: 0 auto;
+    background: linear-gradient(135deg, #1e0a3c 0%, #2d1060 50%, #1e1b4b 100%);
+    border-radius: 32px;
+    border: 2px solid rgba(167,139,250,0.2);
+    overflow: hidden;
+    box-shadow: 0 25px 80px rgba(0,0,0,0.6);
+  }
+  .mobile-topbar {
+    padding: 16px 20px 8px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .mobile-logo {
+    background: linear-gradient(90deg, #f59e0b, #ec4899);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    font-weight: 800; font-size: 14px; letter-spacing: 1px;
+  }
+  .mobile-content { padding: 8px 16px 0; }
+  .mobile-hero {
+    background: linear-gradient(135deg, rgba(245,158,11,0.12), rgba(236,72,153,0.12));
+    border: 1px solid rgba(245,158,11,0.25);
+    border-radius: 16px; padding: 16px; margin-bottom: 12px;
+  }
+  .mobile-hero-label { color: #c4b5fd; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; }
+  .mobile-hero-amount {
+    background: linear-gradient(90deg, #fbbf24, #f472b6);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    font-size: 28px; font-weight: 800; margin: 4px 0;
+  }
+  .mobile-pills { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+  .mobile-pill { border-radius: 10px; padding: 10px 6px; text-align: center; }
+  .mobile-pill-label { font-size: 9px; text-transform: uppercase; margin-bottom: 3px; }
+  .mobile-pill-val { font-size: 13px; font-weight: 700; }
+  .mobile-pill.savings { background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.25); }
+  .mobile-pill.savings .mobile-pill-label { color: #fbbf24; }
+  .mobile-pill.savings .mobile-pill-val { color: #fef3c7; }
+  .mobile-pill.bills { background: rgba(236,72,153,0.1); border: 1px solid rgba(236,72,153,0.25); }
+  .mobile-pill.bills .mobile-pill-label { color: #f472b6; }
+  .mobile-pill.bills .mobile-pill-val { color: #fbcfe8; }
+  .mobile-pill.wants { background: rgba(139,92,246,0.1); border: 1px solid rgba(139,92,246,0.25); }
+  .mobile-pill.wants .mobile-pill-label { color: #a78bfa; }
+  .mobile-pill.wants .mobile-pill-val { color: #ddd6fe; }
+  .mobile-exp { padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center; }
+  .mobile-exp:last-child { border-bottom: none; }
+  .mobile-exp-name { color: #e2e8f0; font-size: 12px; }
+  .mobile-exp-tag { color: #7c6da0; font-size: 10px; }
+  .mobile-exp-amt { font-size: 12px; font-weight: 600; color: #f87171; }
+  .mobile-bottomnav {
+    display: flex; justify-content: space-around; align-items: center;
+    background: rgba(15,5,40,0.9); border-top: 1px solid rgba(167,139,250,0.12);
+    padding: 10px 0 14px; margin-top: 12px;
+  }
+  .mobile-nav-item { text-align: center; }
+  .mobile-nav-item .ico { font-size: 18px; }
+  .mobile-nav-item .lbl { font-size: 9px; margin-top: 2px; }
+  .mobile-nav-item.active .ico { font-size: 18px; }
+  .mobile-nav-item.active .lbl { color: #f59e0b; }
+  .mobile-nav-item:not(.active) .lbl { color: #7c6da0; }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>EASYBUDGET</h1>
+  <p>Full dashboard mockup — Bold Gradient · Fully Adaptive</p>
+</div>
+
+<!-- DESKTOP VIEW -->
+<div style="margin-bottom: 12px; color: #7c6da0; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">💻 Desktop View</div>
+<div class="app-shell">
+  <!-- SIDEBAR -->
+  <nav class="sidebar">
+    <div class="sidebar-logo">EASYBUDGET</div>
+    <div class="nav-item active"><span class="nav-icon">🏠</span> Overview</div>
+    <div class="nav-item"><span class="nav-icon">📊</span> Trends</div>
+    <div class="nav-item"><span class="nav-icon">📋</span> Bills</div>
+    <div class="nav-item"><span class="nav-icon">✈️</span> Trips</div>
+    <div class="nav-item"><span class="nav-icon">🏷️</span> Tags</div>
+    <div class="nav-item"><span class="nav-icon">🎯</span> Goals</div>
+    <div class="sidebar-spacer"></div>
+    <div class="nav-item"><span class="nav-icon">⚙️</span> Settings</div>
+  </nav>
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <h2>Good evening, Luis 👋</h2>
+      <p>Here's how February is looking</p>
+    </div>
+    <div class="month-nav">
+      <button>‹</button>
+      <span>February 2026</span>
+      <button>›</button>
+    </div>
+  </div>
+
+  <!-- MAIN CONTENT -->
+  <div class="main-content">
+    <!-- HERO -->
+    <div class="hero-card">
+      <div>
+        <div class="hero-label">Total Income This Month</div>
+        <div class="hero-amount">$24,666.65</div>
+        <div class="hero-sub">Starting balance: $7,946.22 · End balance: $14,321.19</div>
+        <div class="progress-section">
+          <div class="progress-label-row">
+            <span>Monthly spend: $10,345.46</span>
+            <span>62% of income used</span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill" style="width: 62%;"></div>
+          </div>
+        </div>
+      </div>
+      <div class="hero-right">
+        <div class="balance-tag">✓ On track</div>
+        <div class="balance-amount">$3,093.45</div>
+        <div class="balance-label">Cash left this month</div>
+      </div>
+    </div>
+
+    <!-- ALLOCATION CARDS -->
+    <div class="allocation-row">
+      <div class="alloc-card savings">
+        <div class="alloc-header">
+          <span class="alloc-icon">💰</span>
+          <span class="alloc-pct">20% target</span>
+        </div>
+        <div class="alloc-name">Savings</div>
+        <div class="alloc-amount">$4,933.33</div>
+        <div class="alloc-sub">$2,650 invested · $1,168 Marcus</div>
+        <div class="alloc-bar"><div class="alloc-bar-fill"></div></div>
+      </div>
+      <div class="alloc-card bills">
+        <div class="alloc-header">
+          <span class="alloc-icon">🏦</span>
+          <span class="alloc-pct">70% target</span>
+        </div>
+        <div class="alloc-name">Bills & Essentials</div>
+        <div class="alloc-amount">$17,266.66</div>
+        <div class="alloc-sub">$14,173.21 spent · $3,093 left</div>
+        <div class="alloc-bar"><div class="alloc-bar-fill"></div></div>
+      </div>
+      <div class="alloc-card wants">
+        <div class="alloc-header">
+          <span class="alloc-icon">✨</span>
+          <span class="alloc-pct">10% target</span>
+        </div>
+        <div class="alloc-name">Wants</div>
+        <div class="alloc-amount">$2,466.67</div>
+        <div class="alloc-sub">$300 spent · $2,166 remaining</div>
+        <div class="alloc-bar"><div class="alloc-bar-fill"></div></div>
+      </div>
+    </div>
+
+    <!-- TWO COLUMN -->
+    <div class="two-col">
+      <!-- RECENT EXPENSES -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Recent Expenses</span>
+          <span class="panel-action">View all →</span>
+        </div>
+        <div class="expense-item">
+          <div class="exp-left">
+            <div class="exp-icon">🏠</div>
+            <div><div class="exp-name">Rent</div><div class="exp-tag">Bills · Housing</div></div>
+          </div>
+          <div class="exp-amount out">-$1,100.00</div>
+        </div>
+        <div class="expense-item">
+          <div class="exp-left">
+            <div class="exp-icon">👩‍👧</div>
+            <div><div class="exp-name">Family — Mamá</div><div class="exp-tag">Family · Personal</div></div>
+          </div>
+          <div class="exp-amount out">-$300.00</div>
+        </div>
+        <div class="expense-item">
+          <div class="exp-left">
+            <div class="exp-icon">🌐</div>
+            <div><div class="exp-name">Internet</div><div class="exp-tag">Bills · Utilities</div></div>
+          </div>
+          <div class="exp-amount out">-$85.00</div>
+        </div>
+        <div class="expense-item">
+          <div class="exp-left">
+            <div class="exp-icon">💪</div>
+            <div><div class="exp-name">Planet Fitness</div><div class="exp-tag">Subscriptions · Health</div></div>
+          </div>
+          <div class="exp-amount out">-$25.00</div>
+        </div>
+        <div class="expense-item">
+          <div class="exp-left">
+            <div class="exp-icon">📺</div>
+            <div><div class="exp-name">Netflix</div><div class="exp-tag">Subscriptions · Entertainment</div></div>
+          </div>
+          <div class="exp-amount out">-$30.00</div>
+        </div>
+      </div>
+
+      <!-- SUBSCRIPTIONS -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Subscriptions</span>
+          <span class="panel-action">Manage →</span>
+        </div>
+        <div class="sub-item">
+          <div><div class="sub-name">☁️ Cloud Storage</div><div class="sub-date">Renews May 15</div></div>
+          <div class="sub-amount">$2.99/mo</div>
+        </div>
+        <div class="sub-item">
+          <div><div class="sub-name">📺 Netflix</div><div class="sub-date">Renews May 8</div></div>
+          <div class="sub-amount">$30.00/mo</div>
+        </div>
+        <div class="sub-item">
+          <div><div class="sub-name">💪 Planet Fitness</div><div class="sub-date">Renews May 1</div></div>
+          <div class="sub-amount">$25.00/mo</div>
+        </div>
+        <div class="sub-item">
+          <div><div class="sub-name">🎓 Holberton</div><div class="sub-date">Renews May 20</div></div>
+          <div class="sub-amount">$1,143.22/mo</div>
+        </div>
+        <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.06); display:flex; justify-content:space-between;">
+          <span style="color:#94a3b8; font-size:12px;">Total subscriptions</span>
+          <span style="color:#fbbf24; font-size:14px; font-weight:700;">$1,201.21/mo</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MOBILE VIEW -->
+<div style="margin: 40px 0 12px; color: #7c6da0; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; text-align:center;">📱 Mobile View (same app)</div>
+
+<div class="mobile-preview">
+  <div class="mobile-topbar">
+    <span class="mobile-logo">EASYBUDGET</span>
+    <span style="color:#c4b5fd; font-size:11px;">Feb 2026 ›</span>
+  </div>
+  <div class="mobile-content">
+    <div class="mobile-hero">
+      <div class="mobile-hero-label">Income This Month</div>
+      <div class="mobile-hero-amount">$24,666.65</div>
+      <div style="color:#4ade80; font-size:11px;">✓ On track · $3,093.45 left</div>
+    </div>
+    <div class="mobile-pills">
+      <div class="mobile-pill savings">
+        <div class="mobile-pill-label">Savings</div>
+        <div class="mobile-pill-val">$4,933</div>
+      </div>
+      <div class="mobile-pill bills">
+        <div class="mobile-pill-label">Bills</div>
+        <div class="mobile-pill-val">$17,266</div>
+      </div>
+      <div class="mobile-pill wants">
+        <div class="mobile-pill-label">Wants</div>
+        <div class="mobile-pill-val">$2,466</div>
+      </div>
+    </div>
+    <div style="color:#c4b5fd; font-size:10px; text-transform:uppercase; letter-spacing:1px; margin-bottom:8px;">Recent</div>
+    <div class="mobile-exp">
+      <div><div class="mobile-exp-name">🏠 Rent</div><div class="mobile-exp-tag">Bills · Housing</div></div>
+      <div class="mobile-exp-amt">-$1,100</div>
+    </div>
+    <div class="mobile-exp">
+      <div><div class="mobile-exp-name">👩‍👧 Mamá</div><div class="mobile-exp-tag">Family</div></div>
+      <div class="mobile-exp-amt">-$300</div>
+    </div>
+    <div class="mobile-exp">
+      <div><div class="mobile-exp-name">📺 Netflix</div><div class="mobile-exp-tag">Subscriptions</div></div>
+      <div class="mobile-exp-amt">-$30</div>
+    </div>
+  </div>
+  <div class="mobile-bottomnav">
+    <div class="mobile-nav-item active"><div class="ico">🏠</div><div class="lbl">Home</div></div>
+    <div class="mobile-nav-item"><div class="ico">📊</div><div class="lbl" style="color:#7c6da0;">Trends</div></div>
+    <div class="mobile-nav-item"><div class="ico">✈️</div><div class="lbl" style="color:#7c6da0;">Trips</div></div>
+    <div class="mobile-nav-item"><div class="ico">🎯</div><div class="lbl" style="color:#7c6da0;">Goals</div></div>
+    <div class="mobile-nav-item"><div class="ico">⚙️</div><div class="lbl" style="color:#7c6da0;">More</div></div>
+  </div>
+</div>
+
+<div class="preview-note" style="max-width:700px; margin: 20px auto 0;">
+  This is a static mockup. Let me know what you'd change — labels, layout, colors, what sections to add or remove.
+</div>
+
+<div class="fab">+</div>
+
+</body>
+</html>

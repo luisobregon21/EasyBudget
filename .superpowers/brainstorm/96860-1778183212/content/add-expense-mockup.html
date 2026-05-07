@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EasyBudget — Add Expense</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #0d0d1a;
+    color: #e2e8f0;
+    min-height: 100vh;
+    padding: 24px;
+  }
+  .page-header { text-align: center; margin-bottom: 28px; }
+  .page-header h1 {
+    background: linear-gradient(90deg, #f59e0b, #ec4899);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    font-size: 20px; font-weight: 800; letter-spacing: 2px;
+  }
+  .page-header p { color: #7c6da0; font-size: 12px; margin-top: 5px; }
+
+  .two-phones { display: flex; gap: 28px; justify-content: center; flex-wrap: wrap; }
+
+  .phone {
+    width: 300px;
+    background: linear-gradient(135deg, #1e0a3c 0%, #2d1060 50%, #1e1b4b 100%);
+    border-radius: 32px;
+    border: 2px solid rgba(167,139,250,0.2);
+    overflow: hidden;
+    box-shadow: 0 25px 80px rgba(0,0,0,0.6);
+  }
+  .phone-label {
+    text-align: center; color: #7c6da0; font-size: 11px;
+    text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px;
+  }
+  .phone-topbar {
+    padding: 16px 20px 12px;
+    display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 1px solid rgba(167,139,250,0.1);
+  }
+  .back-btn { color: #a78bfa; font-size: 13px; }
+  .screen-title { color: #e2e8f0; font-size: 15px; font-weight: 700; }
+  .phone-body { padding: 16px; }
+
+  .field-group { margin-bottom: 14px; }
+  .field-label { color: #7c6da0; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+
+  .amount-display {
+    background: linear-gradient(135deg, rgba(245,158,11,0.1), rgba(236,72,153,0.1));
+    border: 1px solid rgba(245,158,11,0.25);
+    border-radius: 14px; padding: 14px 16px;
+    display: flex; align-items: baseline; gap: 6px;
+  }
+  .amount-currency { color: #fbbf24; font-size: 16px; font-weight: 700; }
+  .amount-value {
+    background: linear-gradient(90deg, #fbbf24, #f472b6);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    font-size: 32px; font-weight: 800;
+  }
+  .amount-original { color: #7c6da0; font-size: 11px; margin-left: auto; }
+
+  .text-field {
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(167,139,250,0.15);
+    border-radius: 10px; padding: 11px 14px; color: #e2e8f0; font-size: 13px; width: 100%;
+  }
+  .text-field.placeholder-style { color: #4a4060; }
+
+  .pill-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .pill {
+    border-radius: 20px; padding: 6px 14px; font-size: 12px; cursor: pointer;
+    border: 1px solid rgba(167,139,250,0.2); color: #7c6da0; background: rgba(255,255,255,0.04);
+  }
+  .pill.selected-cash { background: rgba(34,197,94,0.15); border-color: rgba(34,197,94,0.4); color: #4ade80; }
+  .pill.selected-card { background: rgba(99,102,241,0.15); border-color: rgba(99,102,241,0.4); color: #818cf8; }
+  .pill.selected-cc   { background: rgba(236,72,153,0.15); border-color: rgba(236,72,153,0.4); color: #f472b6; }
+  .pill.selected-tag  { background: rgba(245,158,11,0.15); border-color: rgba(245,158,11,0.4); color: #fbbf24; }
+
+  .cc-note {
+    background: rgba(236,72,153,0.08); border: 1px solid rgba(236,72,153,0.2);
+    border-radius: 10px; padding: 10px 12px; font-size: 11px; color: #c4b5fd; margin-top: 8px;
+    line-height: 1.5;
+  }
+  .cc-note strong { color: #f472b6; }
+
+  .cash-note {
+    background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.2);
+    border-radius: 10px; padding: 10px 12px; font-size: 11px; color: #c4b5fd; margin-top: 8px;
+    line-height: 1.5;
+  }
+
+  .currency-row { display: flex; gap: 8px; align-items: center; }
+  .currency-badge {
+    background: rgba(139,92,246,0.15); border: 1px solid rgba(139,92,246,0.3);
+    border-radius: 8px; padding: 8px 12px; color: #a78bfa; font-size: 13px; font-weight: 600;
+    white-space: nowrap;
+  }
+  .converted {
+    color: #7c6da0; font-size: 11px;
+  }
+
+  .save-btn {
+    width: 100%; margin-top: 16px;
+    background: linear-gradient(135deg, #f59e0b, #ec4899);
+    border: none; border-radius: 14px; padding: 14px;
+    color: white; font-size: 15px; font-weight: 700; cursor: pointer;
+    box-shadow: 0 4px 20px rgba(245,158,11,0.3);
+  }
+
+  .phone-bottomnav {
+    display: flex; justify-content: space-around;
+    background: rgba(15,5,40,0.9); border-top: 1px solid rgba(167,139,250,0.1);
+    padding: 10px 0 14px;
+  }
+  .nav-ico { font-size: 18px; }
+  .nav-lbl { font-size: 9px; color: #7c6da0; display: block; text-align: center; }
+  .nav-lbl.active { color: #f59e0b; }
+
+  .divider { border: none; border-top: 1px solid rgba(167,139,250,0.08); margin: 12px 0; }
+
+  .trip-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(251,191,36,0.12); border: 1px solid rgba(251,191,36,0.3);
+    border-radius: 20px; padding: 5px 12px; color: #fbbf24; font-size: 11px;
+  }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>EASYBUDGET</h1>
+  <p>Add Expense — payment method + multi-currency flow</p>
+</div>
+
+<div class="two-phones">
+
+  <!-- PHONE 1: Credit Card expense -->
+  <div>
+    <div class="phone-label">Credit Card Expense</div>
+    <div class="phone">
+      <div class="phone-topbar">
+        <span class="back-btn">‹ Back</span>
+        <span class="screen-title">Add Expense</span>
+        <span style="color:#7c6da0; font-size:12px;">May 7</span>
+      </div>
+      <div class="phone-body">
+        <div class="field-group">
+          <div class="field-label">Amount</div>
+          <div class="amount-display">
+            <span class="amount-currency">$</span>
+            <span class="amount-value">20.00</span>
+          </div>
+        </div>
+
+        <div class="field-group">
+          <div class="field-label">Description</div>
+          <div class="text-field">DoorDash — dinner</div>
+        </div>
+
+        <div class="field-group">
+          <div class="field-label">Category / Tag</div>
+          <div class="pill-row">
+            <div class="pill">🏠 Bills</div>
+            <div class="pill selected-tag">🍕 Food</div>
+            <div class="pill">👗 Clothes</div>
+            <div class="pill">🚗 Car</div>
+            <div class="pill">+ New</div>
+          </div>
+        </div>
+
+        <div class="field-group">
+          <div class="field-label">Paid with</div>
+          <div class="pill-row">
+            <div class="pill">💵 Cash</div>
+            <div class="pill">💳 Debit Card</div>
+            <div class="pill selected-cc">💳 Credit Card</div>
+          </div>
+          <div class="cc-note">
+            <strong>Credit card expense</strong> — this $20 is logged now against your <strong>Wants · Food</strong> budget. Your credit card bill will cover it at month end — no double-counting.
+          </div>
+        </div>
+
+        <div class="field-group">
+          <div class="field-label">Trip (optional)</div>
+          <div class="text-field placeholder-style">None — regular expense</div>
+        </div>
+
+        <button class="save-btn">Save Expense</button>
+      </div>
+      <div class="phone-bottomnav">
+        <div><span class="nav-ico">🏠</span><span class="nav-lbl">Home</span></div>
+        <div><span class="nav-ico">📊</span><span class="nav-lbl">Trends</span></div>
+        <div><span class="nav-ico">✈️</span><span class="nav-lbl">Trips</span></div>
+        <div><span class="nav-ico">🎯</span><span class="nav-lbl">Goals</span></div>
+        <div><span class="nav-ico">⚙️</span><span class="nav-lbl">More</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PHONE 2: Cash expense in travel, foreign currency -->
+  <div>
+    <div class="phone-label">Cash Expense — Travel (Foreign Currency)</div>
+    <div class="phone">
+      <div class="phone-topbar">
+        <span class="back-btn">‹ Back</span>
+        <span class="screen-title">Add Expense</span>
+        <span style="color:#fbbf24; font-size:11px;">✈️ Nicaragua Trip</span>
+      </div>
+      <div class="phone-body">
+        <div class="field-group">
+          <div class="field-label">Amount</div>
+          <div class="currency-row">
+            <div class="currency-badge">NIO C$</div>
+            <div class="amount-display" style="flex:1;">
+              <span class="amount-value" style="font-size:26px;">850</span>
+            </div>
+          </div>
+          <div class="converted" style="margin-top:6px; padding-left:4px;">≈ $23.14 USD · rate: 36.72</div>
+        </div>
+
+        <div class="field-group">
+          <div class="field-label">Description</div>
+          <div class="text-field">Mercado — groceries + street food</div>
+        </div>
+
+        <div class="field-group">
+          <div class="field-label">Category / Tag</div>
+          <div class="pill-row">
+            <div class="pill selected-tag">🍕 Food</div>
+            <div class="pill">🎉 Night Out</div>
+            <div class="pill">🚌 Transport</div>
+            <div class="pill">+ New</div>
+          </div>
+        </div>
+
+        <div class="field-group">
+          <div class="field-label">Paid with</div>
+          <div class="pill-row">
+            <div class="pill selected-cash">💵 Cash</div>
+            <div class="pill">💳 Debit Card</div>
+            <div class="pill">💳 Credit Card</div>
+          </div>
+          <div class="cash-note">
+            Cash expense — this will count against your Nicaragua trip envelope and your monthly Wants budget.
+          </div>
+        </div>
+
+        <div class="field-group">
+          <div class="field-label">Trip</div>
+          <div class="trip-badge">✈️ Nicaragua — May 2026</div>
+        </div>
+
+        <button class="save-btn">Save Expense</button>
+      </div>
+      <div class="phone-bottomnav">
+        <div><span class="nav-ico">🏠</span><span class="nav-lbl">Home</span></div>
+        <div><span class="nav-ico">📊</span><span class="nav-lbl">Trends</span></div>
+        <div><span class="nav-ico">✈️</span><span class="nav-lbl active">Trips</span></div>
+        <div><span class="nav-ico">🎯</span><span class="nav-lbl">Goals</span></div>
+        <div><span class="nav-ico">⚙️</span><span class="nav-lbl">More</span></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div style="max-width:640px; margin: 28px auto 0; background: rgba(255,255,255,0.03); border: 1px solid rgba(167,139,250,0.1); border-radius: 14px; padding: 18px;">
+  <div style="color:#c4b5fd; font-size:11px; text-transform:uppercase; letter-spacing:1px; margin-bottom:12px;">How it all fits together</div>
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; font-size:12px; color:#94a3b8; line-height:1.6;">
+    <div>
+      <div style="color:#fbbf24; font-weight:600; margin-bottom:4px;">💳 Credit Card flow</div>
+      Log expense when it happens (e.g. DoorDash $20 → Food/Wants). At month end, the credit card bill appears as a Bills line item — the app already counted those charges, so it's just a payment, not a new expense.
+    </div>
+    <div>
+      <div style="color:#4ade80; font-weight:600; margin-bottom:4px;">💵 Cash + Multi-currency</div>
+      Log cash when you spend it. For foreign currency, enter the local amount — the app converts to USD at today's rate and stores both. Your trip envelope tracks cordobas/quetzales; your monthly budget sees USD.
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

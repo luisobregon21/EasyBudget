@@ -1,0 +1,188 @@
+<style>
+  .layout-preview {
+    background: linear-gradient(135deg, #1e0a3c 0%, #3b0764 50%, #1e1b4b 100%);
+    border-radius: 12px;
+    padding: 14px;
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    min-height: 260px;
+  }
+  .layout-preview * { box-sizing: border-box; }
+  .lp-topbar {
+    display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;
+  }
+  .lp-logo { background: linear-gradient(90deg,#f59e0b,#ec4899); -webkit-background-clip:text; -webkit-text-fill-color:transparent; font-weight:800; font-size:13px; letter-spacing:1px; }
+  .lp-month { color:#c4b5fd; font-size:11px; }
+  .lp-hero {
+    background: linear-gradient(135deg, rgba(245,158,11,0.15), rgba(236,72,153,0.15));
+    border: 1px solid rgba(245,158,11,0.3);
+    border-radius: 10px;
+    padding: 12px;
+    margin-bottom: 10px;
+  }
+  .lp-label { color:#c4b5fd; font-size:10px; margin-bottom:3px; }
+  .lp-amount { background: linear-gradient(90deg,#fbbf24,#f472b6); -webkit-background-clip:text; -webkit-text-fill-color:transparent; font-size:22px; font-weight:800; }
+  .lp-row { display:grid; gap:7px; margin-bottom:10px; }
+  .lp-row-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .lp-row-2 { grid-template-columns: 1fr 1fr; }
+  .lp-pill {
+    border-radius:8px; padding:8px; text-align:center;
+  }
+  .lp-pill-label { font-size:9px; margin-bottom:3px; }
+  .lp-pill-val { font-size:12px; font-weight:700; }
+  .savings { background:rgba(251,191,36,0.18); border:1px solid rgba(251,191,36,0.3); }
+  .savings .lp-pill-label { color:#fbbf24; }
+  .savings .lp-pill-val { color:#fef3c7; }
+  .bills { background:rgba(236,72,153,0.18); border:1px solid rgba(236,72,153,0.3); }
+  .bills .lp-pill-label { color:#f472b6; }
+  .bills .lp-pill-val { color:#fbcfe8; }
+  .wants { background:rgba(139,92,246,0.18); border:1px solid rgba(139,92,246,0.3); }
+  .wants .lp-pill-label { color:#a78bfa; }
+  .wants .lp-pill-val { color:#ddd6fe; }
+  .lp-expense-row {
+    display:flex; justify-content:space-between; align-items:center;
+    background:rgba(255,255,255,0.04); border-radius:6px; padding:7px 10px; margin-bottom:5px;
+  }
+  .lp-exp-name { color:#e2e8f0; font-size:10px; }
+  .lp-exp-val { color:#fbbf24; font-size:10px; font-weight:600; }
+  .lp-nav {
+    display:flex; justify-content:space-around; align-items:center;
+    background:rgba(30,10,60,0.8); border-top:1px solid rgba(167,139,250,0.2);
+    padding:8px; margin-top:10px; border-radius:0 0 10px 10px;
+  }
+  .lp-nav-item { color:#7c6da0; font-size:9px; text-align:center; }
+  .lp-nav-item.active { color:#f59e0b; }
+  .lp-sidebar-layout { display:flex; gap:8px; }
+  .lp-sidebar { width:70px; background:rgba(30,10,60,0.6); border-radius:8px; padding:8px; display:flex; flex-direction:column; gap:6px; }
+  .lp-sidebar-item { color:#7c6da0; font-size:9px; padding:4px; border-radius:4px; text-align:center; }
+  .lp-sidebar-item.active { background:rgba(245,158,11,0.2); color:#fbbf24; }
+  .lp-main { flex:1; }
+  .lp-progress-bar { background:rgba(255,255,255,0.1); border-radius:4px; height:6px; margin-top:4px; overflow:hidden; }
+  .lp-progress-fill { height:100%; border-radius:4px; }
+  .lp-section-title { color:#c4b5fd; font-size:9px; letter-spacing:1px; text-transform:uppercase; margin-bottom:6px; }
+</style>
+
+<h2>Which layout feels right for the dashboard?</h2>
+<p class="subtitle">Both use the Bold Gradient style. The question is how the navigation and content are organized.</p>
+
+<div class="cards">
+
+  <div class="card" data-choice="bottom-nav" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="layout-preview">
+        <div class="lp-topbar">
+          <span class="lp-logo">EASYBUDGET</span>
+          <span class="lp-month">May 2026</span>
+        </div>
+        <div class="lp-hero">
+          <div class="lp-label">Total Income This Month</div>
+          <div class="lp-amount">$24,666.65</div>
+          <div style="margin-top:8px;">
+            <div style="color:#c4b5fd; font-size:9px; margin-bottom:3px;">Spent so far</div>
+            <div class="lp-progress-bar"><div class="lp-progress-fill" style="width:62%; background:linear-gradient(90deg,#f59e0b,#ec4899);"></div></div>
+          </div>
+        </div>
+        <div class="lp-row lp-row-3">
+          <div class="lp-pill savings"><div class="lp-pill-label">SAVINGS</div><div class="lp-pill-val">$4,933</div></div>
+          <div class="lp-pill bills"><div class="lp-pill-label">BILLS</div><div class="lp-pill-val">$17,266</div></div>
+          <div class="lp-pill wants"><div class="lp-pill-label">WANTS</div><div class="lp-pill-val">$2,466</div></div>
+        </div>
+        <div class="lp-section-title">Recent Expenses</div>
+        <div class="lp-expense-row"><span class="lp-exp-name">🏠 Rent</span><span class="lp-exp-val">-$1,100</span></div>
+        <div class="lp-expense-row"><span class="lp-exp-name">📺 Netflix</span><span class="lp-exp-val">-$30</span></div>
+        <div class="lp-nav">
+          <div class="lp-nav-item active">🏠 Home</div>
+          <div class="lp-nav-item">📊 Trends</div>
+          <div class="lp-nav-item">✈️ Trips</div>
+          <div class="lp-nav-item">⚙️ Settings</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Mobile-First (Bottom Nav)</h3>
+      <p>Full-screen cards with bottom tab navigation. Feels like a native phone app. Home, Trends, Trips, Settings. Swipe between months.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="sidebar-split" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="layout-preview">
+        <div class="lp-topbar">
+          <span class="lp-logo">EASYBUDGET</span>
+          <span class="lp-month">May 2026</span>
+        </div>
+        <div class="lp-sidebar-layout">
+          <div class="lp-sidebar">
+            <div class="lp-sidebar-item active">🏠<br>Home</div>
+            <div class="lp-sidebar-item">📊<br>Trends</div>
+            <div class="lp-sidebar-item">✈️<br>Trips</div>
+            <div class="lp-sidebar-item">🏷️<br>Tags</div>
+            <div class="lp-sidebar-item">⚙️<br>Set</div>
+          </div>
+          <div class="lp-main">
+            <div class="lp-hero" style="margin-bottom:8px;">
+              <div class="lp-label">Income This Month</div>
+              <div class="lp-amount" style="font-size:18px;">$24,666.65</div>
+            </div>
+            <div class="lp-row lp-row-2" style="margin-bottom:8px;">
+              <div class="lp-pill savings"><div class="lp-pill-label">SAVINGS</div><div class="lp-pill-val">$4,933</div></div>
+              <div class="lp-pill bills"><div class="lp-pill-label">BILLS</div><div class="lp-pill-val">$17,266</div></div>
+            </div>
+            <div class="lp-section-title">Bills Breakdown</div>
+            <div class="lp-expense-row"><span class="lp-exp-name">🏠 Rent</span><span class="lp-exp-val">-$1,100</span></div>
+            <div class="lp-expense-row"><span class="lp-exp-name">🌐 Internet</span><span class="lp-exp-val">-$85</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Desktop-First (Side Nav)</h3>
+      <p>Persistent sidebar on desktop, collapses to bottom nav on mobile. More content visible at once. Better for deep data entry and trends views.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="adaptive" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="layout-preview" style="min-height:auto;">
+        <div class="lp-topbar">
+          <span class="lp-logo">EASYBUDGET</span>
+          <span class="lp-month" style="font-size:10px;">📱 bottom nav → 💻 sidebar</span>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px;">
+          <div>
+            <div class="lp-section-title">On Phone</div>
+            <div class="layout-preview" style="padding:8px; min-height:auto;">
+              <div class="lp-hero" style="margin-bottom:6px;"><div class="lp-label">Income</div><div class="lp-amount" style="font-size:14px;">$24,666</div></div>
+              <div style="display:flex; justify-content:space-around; background:rgba(30,10,60,0.8); border-radius:6px; padding:5px;">
+                <span style="color:#f59e0b; font-size:9px;">🏠</span>
+                <span style="color:#7c6da0; font-size:9px;">📊</span>
+                <span style="color:#7c6da0; font-size:9px;">✈️</span>
+                <span style="color:#7c6da0; font-size:9px;">⚙️</span>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="lp-section-title">On Desktop</div>
+            <div class="layout-preview" style="padding:8px; min-height:auto;">
+              <div style="display:flex; gap:6px;">
+                <div style="background:rgba(30,10,60,0.6); border-radius:6px; padding:5px; width:30px; font-size:9px; color:#7c6da0; display:flex; flex-direction:column; gap:4px; align-items:center;">
+                  <span style="color:#f59e0b;">🏠</span>
+                  <span>📊</span><span>✈️</span><span>⚙️</span>
+                </div>
+                <div style="flex:1;">
+                  <div class="lp-hero" style="margin-bottom:5px;"><div class="lp-label">Income</div><div class="lp-amount" style="font-size:14px;">$24,666</div></div>
+                  <div class="lp-expense-row" style="margin-bottom:3px;"><span class="lp-exp-name">🏠 Rent</span><span class="lp-exp-val">-$1,100</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div style="color:#c4b5fd; font-size:10px; text-align:center;">Same app, adapts automatically to your screen</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Fully Adaptive (Recommended)</h3>
+      <p>Bottom nav on phone, sidebar on desktop/tablet — automatically. Best of both. One PWA that feels native everywhere. This is how great PWAs work.</p>
+    </div>
+  </div>
+
+</div>
