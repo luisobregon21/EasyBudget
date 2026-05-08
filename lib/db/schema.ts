@@ -106,13 +106,58 @@ export const expenses = pgTable("expenses", {
   createdAt:     timestamp("created_at").notNull().defaultNow(),
 });
 
+// NEW: credit cards owned by user
+export const creditCards = pgTable("credit_cards", {
+  id:     serial("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name:   text("name").notNull(),   // e.g. "Chase Sapphire", "Discover"
+  dueDay: integer("due_day").notNull(),
+});
+
 export const bills = pgTable("bills", {
   id:                 serial("id").primaryKey(),
   userId:             text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   name:               text("name").notNull(),
   amount:             real("amount").notNull(),
-  dueDay:             integer("due_day").notNull(),
+  dueDay:             integer("due_day").notNull().default(1),
+  frequency:          text("frequency").$type<"monthly" | "yearly">().notNull().default("monthly"),
+  renewalMonth:       integer("renewal_month"),   // 1–12, yearly only
+  renewalDay:         integer("renewal_day"),     // 1–31, yearly only
+  description:        text("description"),
   type:               text("type").$type<"utility" | "subscription" | "credit_card" | "loan" | "other">().notNull(),
+  creditCardId:       integer("credit_card_id").references(() => creditCards.id, { onDelete: "set null" }),
   reminderDaysBefore: integer("reminder_days_before").notNull().default(3),
   active:             boolean("active").notNull().default(true),
+});
+
+// NEW: recurring income templates
+export const incomeSources = pgTable("income_sources", {
+  id:        serial("id").primaryKey(),
+  userId:    text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name:      text("name").notNull(),
+  amount:    real("amount").notNull(),
+  frequency: text("frequency").$type<"biweekly" | "monthly" | "one_time">().notNull(),
+  active:    boolean("active").notNull().default(true),
+});
+
+// NEW: per-month income occurrences
+export const incomeEntries = pgTable("income_entries", {
+  id:           serial("id").primaryKey(),
+  userId:       text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  sourceId:     integer("source_id").references(() => incomeSources.id, { onDelete: "set null" }),
+  monthId:      integer("month_id").notNull().references(() => months.id, { onDelete: "cascade" }),
+  name:         text("name").notNull(),
+  amount:       real("amount").notNull(),
+  status:       text("status").$type<"expected" | "might_arrive" | "arrived">().notNull().default("expected"),
+  expectedDate: date("expected_date").notNull(),
+  arrivedDate:  date("arrived_date"),
+});
+
+// NEW: savings allocation destinations
+export const savingsAllocations = pgTable("savings_allocations", {
+  id:         serial("id").primaryKey(),
+  userId:     text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name:       text("name").notNull(),
+  percentage: integer("percentage").notNull(),
+  sortOrder:  integer("sort_order").notNull().default(0),
 });
