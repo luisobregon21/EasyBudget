@@ -1,12 +1,10 @@
 import NextAuth from "next-auth";
-import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import Credentials from "next-auth/providers/credentials";
 import { getDb, users } from "@/lib/db";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
-  adapter: DrizzleAdapter(getDb()),
   providers: [
     Credentials({
       credentials: {
@@ -22,10 +20,20 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         if (!user?.password) return null;
         const valid = await bcrypt.compare(password, user.password);
         if (!valid) return null;
-        return user;
+        return { id: user.id, email: user.email, name: user.name };
       },
     }),
   ],
   pages: { signIn: "/login" },
-  session: { strategy: "database" },
+  session: { strategy: "jwt" },
+  callbacks: {
+    jwt({ token, user }) {
+      if (user) token.id = user.id;
+      return token;
+    },
+    session({ session, token }) {
+      if (session.user) session.user.id = token.id as string;
+      return session;
+    },
+  },
 });

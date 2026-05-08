@@ -2,6 +2,7 @@ import { signIn } from "@/lib/auth/config";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import Link from "next/link";
 
 export default function LoginPage() {
   return (
@@ -36,6 +37,10 @@ export default function LoginPage() {
           </Button>
         </form>
 
+        <p className="text-center text-sm text-muted-foreground">
+          No account?{" "}
+          <Link href="/register" className="text-accent-gold hover:underline">Create one</Link>
+        </p>
       </div>
     </div>
   );
