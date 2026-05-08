@@ -2,10 +2,10 @@ import { formatCurrency } from "@/lib/utils";
 
 type Bucket = "savings" | "bills" | "wants";
 
-const STYLES: Record<Bucket, { bg: string; border: string; label: string; bar: string; icon: string }> = {
-  savings: { bg: "bg-amber-500/10",  border: "border-amber-500/25",  label: "text-amber-400",  bar: "bg-amber-400",  icon: "💰" },
-  bills:   { bg: "bg-pink-500/10",   border: "border-pink-500/25",   label: "text-pink-400",   bar: "bg-pink-400",   icon: "🏦" },
-  wants:   { bg: "bg-violet-500/10", border: "border-violet-500/25", label: "text-violet-400", bar: "bg-violet-400", icon: "✨" },
+const STYLES: Record<Bucket, { bg: string; border: string; label: string; bar: string; icon: string; displayName: string }> = {
+  savings: { bg: "bg-amber-500/10",  border: "border-amber-500/25",  label: "text-amber-400",  bar: "bg-amber-400",  icon: "💰", displayName: "Savings" },
+  bills:   { bg: "bg-pink-500/10",   border: "border-pink-500/25",   label: "text-pink-400",   bar: "bg-pink-400",   icon: "🏦", displayName: "Bills" },
+  wants:   { bg: "bg-violet-500/10", border: "border-violet-500/25", label: "text-violet-400", bar: "bg-violet-400", icon: "✨", displayName: "Personal" },
 };
 
 interface AllocationCardProps {
@@ -29,7 +29,7 @@ export function AllocationCard({ bucket, pct, income, spent }: AllocationCardPro
           {pct}% target
         </span>
       </div>
-      <p className={`text-[10px] uppercase tracking-wider ${s.label} mb-1`}>{bucket}</p>
+      <p className={`text-[10px] uppercase tracking-wider ${s.label} mb-1`}>{s.displayName}</p>
       <p className="text-foreground text-xl font-bold">{formatCurrency(allocated)}</p>
       <p className="text-muted-base text-[10px] mt-0.5">
         {formatCurrency(spent)} spent · {formatCurrency(Math.max(remaining, 0))} left
