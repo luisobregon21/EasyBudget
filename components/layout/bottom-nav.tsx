@@ -1,15 +1,15 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, BarChart2, Plane, Target, MoreHorizontal } from "lucide-react";
+import { Home, Wallet, Target, Receipt, MoreHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV = [
   { href: "/",       label: "Home",   icon: Home },
-  { href: "/trends", label: "Trends", icon: BarChart2 },
-  { href: "/trips",  label: "Trips",  icon: Plane },
+  { href: "/income", label: "Income", icon: Wallet },
   { href: "/goals",  label: "Goals",  icon: Target },
-  { href: "/bills",  label: "More",   icon: MoreHorizontal },
+  { href: "/bills",  label: "Bills",  icon: Receipt },
+  { href: "/trips",  label: "More",   icon: MoreHorizontal },
 ];
 
 export function BottomNav() {

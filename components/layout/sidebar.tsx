@@ -1,16 +1,17 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, BarChart2, Receipt, Plane, Tag, Target, Settings } from "lucide-react";
+import { Home, BarChart2, Receipt, Plane, Tag, Target, Settings, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV = [
-  { href: "/",        label: "Overview",  icon: Home },
-  { href: "/trends",  label: "Trends",    icon: BarChart2 },
-  { href: "/bills",   label: "Bills",     icon: Receipt },
-  { href: "/trips",   label: "Trips",     icon: Plane },
-  { href: "/tags",    label: "Tags",      icon: Tag },
-  { href: "/goals",   label: "Goals",     icon: Target },
+  { href: "/",        label: "Overview", icon: Home },
+  { href: "/income",  label: "Income",   icon: Wallet },
+  { href: "/trends",  label: "Trends",   icon: BarChart2 },
+  { href: "/bills",   label: "Bills",    icon: Receipt },
+  { href: "/trips",   label: "Trips",    icon: Plane },
+  { href: "/tags",    label: "Tags",     icon: Tag },
+  { href: "/goals",   label: "Goals",    icon: Target },
 ];
 
 export function Sidebar() {

@@ -1,23 +1,29 @@
 import { formatCurrency } from "@/lib/utils";
 
 interface HeroCardProps {
-  income: number;
+  budgetTotal: number;
+  actualBalance: number;
+  possible: number;
   openingBalance: number;
   totalExpenses: number;
 }
 
-export function HeroCard({ income, openingBalance, totalExpenses }: HeroCardProps) {
-  const closingBalance = openingBalance + income - totalExpenses;
-  const pctUsed = income > 0 ? Math.min((totalExpenses / income) * 100, 100) : 0;
+export function HeroCard({ budgetTotal, actualBalance, possible, openingBalance, totalExpenses }: HeroCardProps) {
+  const closingBalance = openingBalance + actualBalance - totalExpenses;
+  const pctUsed = budgetTotal > 0 ? Math.min((totalExpenses / budgetTotal) * 100, 100) : 0;
   const onTrack = pctUsed < 85;
 
   return (
     <div className="rounded-2xl bg-gradient-card border border-accent-gold/25 p-5">
       <div className="flex justify-between items-start">
         <div>
-          <p className="text-accent-purple-light text-[10px] uppercase tracking-widest mb-1">Total Income</p>
-          <p className="gradient-text text-4xl font-black">{formatCurrency(income)}</p>
+          <p className="text-accent-purple-light text-[10px] uppercase tracking-widest mb-1">Budget Total</p>
+          <p className="gradient-text text-4xl font-black">{formatCurrency(budgetTotal)}</p>
           <p className="text-muted-base text-xs mt-1">
+            Actual: {formatCurrency(actualBalance)}
+            {possible > 0 && <span className="ml-2 text-muted-base/60">+{formatCurrency(possible)} possible</span>}
+          </p>
+          <p className="text-muted-base text-xs">
             Opening: {formatCurrency(openingBalance)} · Closing: {formatCurrency(closingBalance)}
           </p>
         </div>
@@ -36,7 +42,7 @@ export function HeroCard({ income, openingBalance, totalExpenses }: HeroCardProp
       <div className="mt-4">
         <div className="flex justify-between text-[10px] text-muted-base mb-1">
           <span>Spent: {formatCurrency(totalExpenses)}</span>
-          <span>{pctUsed.toFixed(0)}% of income</span>
+          <span>{pctUsed.toFixed(0)}% of budget</span>
         </div>
         <div className="h-2 rounded-full bg-white/[0.08] overflow-hidden">
           <div
