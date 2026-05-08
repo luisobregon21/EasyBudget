@@ -12,12 +12,6 @@ export async function getIncomeEntries(monthId: number) {
     .orderBy(asc(incomeEntries.expectedDate));
 }
 
-export function calcIncomeTotals(entries: { status: string; amount: number }[]) {
-  const arrived = entries.filter((e) => e.status === "arrived").reduce((s, e) => s + e.amount, 0);
-  const expected = entries.filter((e) => e.status === "expected").reduce((s, e) => s + e.amount, 0);
-  const possible = entries.filter((e) => e.status === "might_arrive").reduce((s, e) => s + e.amount, 0);
-  return { budgetTotal: arrived + expected, actualBalance: arrived, possible };
-}
 
 export async function generateMonthIncomeEntries(monthId: number, year: number, month: number) {
   const user = await requireSession();

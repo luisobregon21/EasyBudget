@@ -1,7 +1,7 @@
 import { getOrCreateMonth } from "@/lib/actions/months";
-import { getIncomeEntries, calcIncomeTotals } from "@/lib/actions/income";
+import { getIncomeEntries } from "@/lib/actions/income";
 import { getSavingsAllocations } from "@/lib/actions/goals";
-import { currentYearMonth, formatCurrency } from "@/lib/utils";
+import { currentYearMonth, formatCurrency, calcIncomeTotals } from "@/lib/utils";
 import { MonthSwitcher } from "@/components/layout/month-switcher";
 import { SavingsAllocationList } from "@/components/goals/savings-allocation-list";
 

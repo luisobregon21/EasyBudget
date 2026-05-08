@@ -1,6 +1,6 @@
 import { getOrCreateMonth } from "@/lib/actions/months";
-import { getIncomeEntries, calcIncomeTotals } from "@/lib/actions/income";
-import { currentYearMonth, formatCurrency } from "@/lib/utils";
+import { getIncomeEntries } from "@/lib/actions/income";
+import { currentYearMonth, formatCurrency, calcIncomeTotals } from "@/lib/utils";
 import { MonthSwitcher } from "@/components/layout/month-switcher";
 import { OverdueBanner } from "@/components/income/overdue-banner";
 import { IncomeEntryList } from "@/components/income/income-entry-list";
