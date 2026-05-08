@@ -36,11 +36,6 @@ export default function LoginPage() {
           </Button>
         </form>
 
-        <form action={async () => { "use server"; await signIn("google", { redirectTo: "/" }); }}>
-          <Button variant="outline" className="w-full">
-            Continue with Google
-          </Button>
-        </form>
       </div>
     </div>
   );
