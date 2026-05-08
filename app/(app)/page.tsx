@@ -1,10 +1,12 @@
 import { getOrCreateMonth } from "@/lib/actions/months";
 import { seedDefaultTags } from "@/lib/actions/tags";
 import { getExpensesForMonth } from "@/lib/actions/expenses";
+import { getUpcomingBills } from "@/lib/actions/bills";
 import { currentYearMonth } from "@/lib/utils";
 import { HeroCard } from "@/components/dashboard/hero-card";
 import { AllocationCard } from "@/components/dashboard/allocation-card";
 import { ExpenseList } from "@/components/dashboard/expense-list";
+import { UpcomingBillsStrip } from "@/components/dashboard/upcoming-bills-strip";
 import { MonthSwitcher } from "@/components/layout/month-switcher";
 
 export default async function HomePage({
@@ -21,6 +23,7 @@ export default async function HomePage({
 
   const monthData = await getOrCreateMonth(year, month);
   const expenseRows = await getExpensesForMonth(monthData.id);
+  const upcomingBills = await getUpcomingBills(7);
 
   const totalExpenses = expenseRows.reduce((sum, e) => sum + (e.amountUsd ?? 0), 0);
   const byBucket = (bucket: string) =>
@@ -62,6 +65,8 @@ export default async function HomePage({
           spent={byBucket("wants")}
         />
       </div>
+
+      <UpcomingBillsStrip bills={upcomingBills} />
 
       <ExpenseList expenses={expenseRows as any} />
     </div>
