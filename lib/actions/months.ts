@@ -2,6 +2,7 @@
 import { getDb, months, userSettings } from "@/lib/db";
 import { and, eq } from "drizzle-orm";
 import { requireSession } from "@/lib/auth/session";
+import { generateMonthIncomeEntries } from "@/lib/actions/income";
 
 export async function getOrCreateMonth(year: number, month: number) {
   const user = await requireSession();
@@ -11,7 +12,10 @@ export async function getOrCreateMonth(year: number, month: number) {
     .where(and(eq(months.userId, userId), eq(months.year, year), eq(months.month, month)))
     .limit(1);
 
-  if (existing[0]) return existing[0];
+  if (existing[0]) {
+    await generateMonthIncomeEntries(existing[0].id, year, month);
+    return existing[0];
+  }
 
   const settings = await db.select().from(userSettings).where(eq(userSettings.userId, userId)).limit(1);
   const defaults = settings[0] ?? { defaultSavingsPct: 20, defaultWantsPct: 10, defaultBillsPct: 70 };
@@ -25,6 +29,7 @@ export async function getOrCreateMonth(year: number, month: number) {
     billsPct:   defaults.defaultBillsPct,
   }).returning();
 
+  await generateMonthIncomeEntries(created.id, year, month);
   return created;
 }
 
