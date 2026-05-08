@@ -1,38 +1,53 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
-import { getDb, users } from "@/lib/db";
+import { DrizzleAdapter } from "@auth/drizzle-adapter";
+import { db, users } from "@/lib/db";
 import { eq } from "drizzle-orm";
+import { z } from "zod";
 import bcrypt from "bcryptjs";
 
+const credentialsSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(8),
+});
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  adapter: DrizzleAdapter(db),
+  session: { strategy: "jwt" },
+  pages: { signIn: "/login" },
   providers: [
     Credentials({
       credentials: {
-        email:    { label: "Email", type: "email" },
+        email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        const email = credentials?.email as string | undefined;
-        const password = credentials?.password as string | undefined;
-        if (!email || !password) return null;
-        const db = getDb();
-        const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+        const parsed = credentialsSchema.safeParse(credentials);
+        if (!parsed.success) return null;
+
+        const { email, password } = parsed.data;
+        const [user] = await db
+          .select()
+          .from(users)
+          .where(eq(users.email, email))
+          .limit(1);
+
         if (!user?.password) return null;
-        const valid = await bcrypt.compare(password, user.password);
-        if (!valid) return null;
-        return { id: user.id, email: user.email, name: user.name };
+
+        const passwordsMatch = await bcrypt.compare(password, user.password);
+        if (!passwordsMatch) return null;
+
+        return { id: user.id, name: user.name, email: user.email };
       },
     }),
   ],
-  pages: { signIn: "/login" },
-  session: { strategy: "jwt" },
   callbacks: {
-    jwt({ token, user }) {
+    async jwt({ token, user }) {
       if (user) token.id = user.id;
       return token;
     },
-    session({ session, token }) {
-      if (session.user) session.user.id = token.id as string;
+    async session({ session, token }) {
+      if (token.id) session.user.id = token.id as string;
       return session;
     },
   },

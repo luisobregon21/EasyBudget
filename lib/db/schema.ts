@@ -2,12 +2,13 @@ import {
   pgTable, text, integer, real, boolean,
   timestamp, date, primaryKey, serial, index
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import type { AdapterAccount } from "@auth/core/adapters";
 
 // ── Auth.js required tables ──────────────────────────────────────────────────
 
 export const users = pgTable("users", {
-  id:            text("id").notNull().primaryKey(),
+  id:            text("id").notNull().primaryKey().default(sql`gen_random_uuid()`),
   name:          text("name"),
   email:         text("email").notNull(),
   emailVerified: timestamp("email_verified", { mode: "date" }),

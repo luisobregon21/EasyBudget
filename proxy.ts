@@ -1,18 +1,43 @@
 import { auth } from "@/lib/auth/config";
 import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
-export const proxy = auth((req) => {
-  const isLoggedIn = !!req.auth;
-  const isAuthRoute = req.nextUrl.pathname.startsWith("/login");
+export async function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl;
 
-  if (!isLoggedIn && !isAuthRoute) {
-    return NextResponse.redirect(new URL("/login", req.url));
+  if (
+    pathname.startsWith("/_next") ||
+    pathname.startsWith("/favicon") ||
+    pathname.startsWith("/api/auth") ||
+    pathname.startsWith("/icons") ||
+    pathname === "/manifest.json" ||
+    pathname === "/sw.js"
+  ) {
+    return NextResponse.next();
   }
-  if (isLoggedIn && isAuthRoute) {
-    return NextResponse.redirect(new URL("/", req.url));
+
+  let session = null;
+  try {
+    session = await auth();
+  } catch {
+    return NextResponse.next();
   }
-});
+
+  const isLoggedIn = !!session?.user;
+  const isAuthPage = pathname === "/login" || pathname === "/register";
+
+  if (isAuthPage) {
+    if (isLoggedIn) return NextResponse.redirect(new URL("/", request.url));
+    return NextResponse.next();
+  }
+
+  if (!isLoggedIn) {
+    return NextResponse.redirect(new URL("/login", request.url));
+  }
+
+  return NextResponse.next();
+}
 
 export const proxyConfig = {
-  matcher: ["/((?!api|_next/static|_next/image|icons|manifest.json|sw.js|favicon.ico).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon\\.ico).*)"],
 };
