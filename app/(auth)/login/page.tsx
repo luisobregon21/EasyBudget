@@ -29,7 +29,7 @@ export default function LoginPage() {
           </div>
           <div className="space-y-1">
             <Label htmlFor="password" className="text-xs uppercase tracking-wide">Password</Label>
-            <Input id="password" name="password" type="password" placeholder="••••••••" />
+            <Input id="password" name="password" type="password" placeholder="••••••••" required />
           </div>
           <Button type="submit" className="w-full font-bold">
             Sign In

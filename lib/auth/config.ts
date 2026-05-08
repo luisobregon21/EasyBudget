@@ -19,7 +19,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        const { email, password } = credentials as { email: string; password: string };
+        const email = credentials?.email as string | undefined;
+        const password = credentials?.password as string | undefined;
         if (!email || !password) return null;
         const db = getDb();
         const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
