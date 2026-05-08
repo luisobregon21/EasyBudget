@@ -1,6 +1,11 @@
 import { formatCurrency } from "@/lib/utils";
 
-type Bill = { id: number; name: string; amount: number; dueDay: number; type: string };
+const MONTHS_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+type Bill = {
+  id: number; name: string; amount: number; dueDay: number; type: string;
+  frequency?: string; renewalMonth?: number | null; renewalDay?: number | null;
+};
 
 const TYPE_ICON: Record<string, string> = {
   utility: "💡", subscription: "📺", credit_card: "💳", loan: "🏦", other: "📋",
@@ -17,7 +22,12 @@ export function UpcomingBillsStrip({ bills }: { bills: Bill[] }) {
       </h3>
       <div className="space-y-2">
         {bills.map((b) => {
-          const daysUntil = b.dueDay >= today ? b.dueDay - today : 31 - today + b.dueDay;
+          const isYearly = b.frequency === "yearly";
+          const dueDay = isYearly ? (b.renewalDay ?? 1) : b.dueDay;
+          const daysUntil = dueDay >= today ? dueDay - today : 31 - today + dueDay;
+          const dueDateLabel = isYearly
+            ? `${MONTHS_SHORT[(b.renewalMonth ?? 1) - 1]} ${b.renewalDay}`
+            : `day ${b.dueDay}`;
           return (
             <div key={b.id} className="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
               <div className="flex items-center gap-3">
@@ -25,7 +35,7 @@ export function UpcomingBillsStrip({ bills }: { bills: Bill[] }) {
                 <div>
                   <p className="text-foreground text-sm font-medium">{b.name}</p>
                   <p className="text-muted-base text-[10px]">
-                    Due {daysUntil === 0 ? "today" : `in ${daysUntil} day${daysUntil === 1 ? "" : "s"}`} (day {b.dueDay})
+                    Due {daysUntil === 0 ? "today" : `in ${daysUntil} day${daysUntil === 1 ? "" : "s"}`} ({dueDateLabel})
                   </p>
                 </div>
               </div>
