@@ -1,7 +1,7 @@
 import { getBillById, updateBill } from "@/lib/actions/bills";
 import { getCreditCards } from "@/lib/actions/credit-cards";
 import { BillForm } from "@/components/bills/bill-form";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 
@@ -13,7 +13,6 @@ export default async function EditBillPage({ params }: { params: Promise<{ id: s
   async function handleUpdate(formData: FormData) {
     "use server";
     await updateBill(bill!.id, formData);
-    const { redirect } = await import("next/navigation");
     redirect("/bills");
   }
 

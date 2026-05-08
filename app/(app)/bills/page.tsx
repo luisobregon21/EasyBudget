@@ -38,7 +38,7 @@ export default async function BillsPage() {
         )}
         {billsList.map((b) => {
           const dueLine = b.frequency === "yearly"
-            ? `Renews ${MONTHS_SHORT[(b.renewalMonth ?? 1) - 1]} ${b.renewalDay} · Yearly`
+            ? `Renews ${MONTHS_SHORT[(b.renewalMonth ?? 1) - 1]} ${b.renewalDay ?? "?"} · Yearly`
             : `Due day ${b.dueDay} · Monthly`;
           return (
             <div key={b.id} className="flex items-center justify-between p-4">

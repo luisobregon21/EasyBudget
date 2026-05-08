@@ -60,6 +60,8 @@ export async function getUpcomingBills(daysAhead = 7) {
     .from(bills)
     .where(and(eq(bills.userId, user.id!), eq(bills.active, true)));
 
+  const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+
   return allBills.filter((b) => {
     if (b.frequency === "yearly") {
       if (b.renewalMonth !== todayMonth) return false;
@@ -68,7 +70,7 @@ export async function getUpcomingBills(daysAhead = 7) {
     }
     const daysUntil = b.dueDay >= todayDay
       ? b.dueDay - todayDay
-      : 31 - todayDay + b.dueDay;
+      : daysInMonth - todayDay + b.dueDay;
     return daysUntil <= daysAhead;
   });
 }
