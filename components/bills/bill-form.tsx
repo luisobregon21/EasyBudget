@@ -11,7 +11,7 @@ const MONTHS = [
 ];
 
 type ActionResult = { success: boolean; message: string };
-type CreditCard = { id: number; name: string; dueDay: number };
+type CreditCard = { id: number; name: string; dueDay: number | null };
 
 interface BillFormProps {
   creditCards: CreditCard[];

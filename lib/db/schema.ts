@@ -99,8 +99,9 @@ export const expenses = pgTable("expenses", {
   exchangeRate:  real("exchange_rate").notNull().default(1),
   description:   text("description").notNull(),
   date:          date("date").notNull(),
-  paymentMethod: text("payment_method").$type<"cash" | "debit" | "credit_card">().notNull(),
-  bucket:        text("bucket").$type<"savings" | "bills" | "wants">().notNull(),
+  paymentMethod:   text("payment_method").$type<"cash" | "debit" | "credit_card">().notNull(),
+  paymentMethodId: integer("payment_method_id").references(() => creditCards.id, { onDelete: "set null" }),
+  bucket:          text("bucket").$type<"savings" | "bills" | "wants">().notNull(),
   tagId:         integer("tag_id").references(() => tags.id, { onDelete: "set null" }),
   tripId:        integer("trip_id").references(() => trips.id, { onDelete: "set null" }),
   createdAt:     timestamp("created_at").notNull().defaultNow(),
@@ -110,8 +111,9 @@ export const expenses = pgTable("expenses", {
 export const creditCards = pgTable("credit_cards", {
   id:     serial("id").primaryKey(),
   userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  name:   text("name").notNull(),   // e.g. "Chase Sapphire", "Discover"
-  dueDay: integer("due_day").notNull(),
+  name:   text("name").notNull(),
+  type:   text("type").$type<"credit" | "debit" | "ath_movil">().notNull().default("credit"),
+  dueDay: integer("due_day"),   // nullable — only required for credit cards
 });
 
 export const bills = pgTable("bills", {
