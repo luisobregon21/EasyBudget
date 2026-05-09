@@ -109,7 +109,8 @@ export async function getExpensesByPaymentMethod(monthId: number) {
     groups[key].total += row.amountUsd;
   }
 
-  return Object.values(groups)
-    .filter((g) => g.total > 0)
-    .sort((a, b) => b.total - a.total);
+  return Object.entries(groups)
+    .filter(([, g]) => g.total > 0)
+    .sort(([, a], [, b]) => b.total - a.total)
+    .map(([key, g]) => ({ key, ...g }));
 }

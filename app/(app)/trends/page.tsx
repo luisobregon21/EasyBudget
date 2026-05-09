@@ -38,7 +38,7 @@ export default async function TrendsPage({
             {byMethod.map((m) => {
               const pct = totalSpent > 0 ? Math.round((m.total / totalSpent) * 100) : 0;
               return (
-                <div key={m.name} className="flex items-center justify-between p-4 gap-3">
+                <div key={m.key} className="flex items-center justify-between p-4 gap-3">
                   <div className="min-w-0 flex-1">
                     <p className="text-foreground font-medium">{m.name}</p>
                     <div className="mt-1 h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
