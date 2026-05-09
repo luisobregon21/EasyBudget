@@ -1,8 +1,9 @@
 "use client";
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
 
 const MONTHS = [
   "January","February","March","April","May","June",
@@ -32,6 +33,12 @@ interface BillFormProps {
 
 export function BillForm({ creditCards, action, defaultValues = {}, submitLabel = "Save Bill" }: BillFormProps) {
   const [state, formAction, pending] = useActionState(action, null);
+
+  useEffect(() => {
+    if (state?.success) toast.success(state.message);
+    if (state?.success === false) toast.error(state.message);
+  }, [state]);
+
   const [frequency, setFrequency] = useState<"monthly" | "yearly">(defaultValues.frequency ?? "monthly");
   const [type, setType] = useState(defaultValues.type ?? "subscription");
 
