@@ -1,10 +1,11 @@
 "use client";
-import { useActionState, useEffect } from "react";
+import { useState, useActionState, useEffect } from "react";
 import { deleteSavingsAllocation, createSavingsAllocation } from "@/lib/actions/goals";
 import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { FireAndForgetButton } from "@/components/ui/fire-and-forget-button";
 import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -20,10 +21,14 @@ export function SavingsAllocationList({
   const totalPct = allocations.reduce((s, a) => s + a.percentage, 0);
   const remaining = 100 - totalPct;
 
+  const [formKey, setFormKey] = useState(0);
   const [state, formAction, pending] = useActionState(createSavingsAllocation, null);
 
   useEffect(() => {
-    if (state?.success) toast.success(state.message);
+    if (state?.success) {
+      toast.success(state.message);
+      setFormKey((k) => k + 1);  // reset form
+    }
     if (state?.success === false) toast.error(state.message);
   }, [state]);
 
@@ -46,9 +51,6 @@ export function SavingsAllocationList({
         )}
         {allocations.map((a) => {
           const dollars = savingsPot * (a.percentage / 100);
-          async function handleDelete(formData: FormData) {
-            await deleteSavingsAllocation(a.id);
-          }
           return (
             <div key={a.id} className="flex items-center justify-between p-4 gap-3">
               <div className="min-w-0">
@@ -57,18 +59,19 @@ export function SavingsAllocationList({
               </div>
               <div className="flex items-center gap-3 shrink-0">
                 <span className="text-accent-purple-light font-bold">{a.percentage}%</span>
-                <form action={handleDelete}>
-                  <button type="submit" className="text-muted-base hover:text-red-400 transition-colors">
-                    <Trash2 size={14} />
-                  </button>
-                </form>
+                <FireAndForgetButton
+                  action={() => deleteSavingsAllocation(a.id)}
+                  className="text-muted-base hover:text-red-400 transition-colors"
+                >
+                  <Trash2 size={14} />
+                </FireAndForgetButton>
               </div>
             </div>
           );
         })}
       </div>
 
-      <form action={formAction}
+      <form key={formKey} action={formAction}
         className="rounded-2xl bg-white/[0.03] border border-accent-purple/10 p-4 space-y-3">
         <p className="text-muted-base text-xs uppercase tracking-widest">Add Destination</p>
         <div className="flex gap-3">

@@ -1,15 +1,10 @@
 import { getCreditCards, deleteCreditCard } from "@/lib/actions/credit-cards";
 import { CreditCardForm } from "@/components/settings/credit-card-form";
+import { FireAndForgetButton } from "@/components/ui/fire-and-forget-button";
 import { Trash2, CreditCard } from "lucide-react";
 
 export default async function SettingsPage() {
   const cards = await getCreditCards();
-
-  async function handleDeleteCard(cardId: number) {
-    "use server";
-    await deleteCreditCard(cardId);
-    return undefined;
-  }
 
   return (
     <div className="space-y-8 max-w-lg">
@@ -34,11 +29,12 @@ export default async function SettingsPage() {
                 <p className="text-foreground font-medium">{card.name}</p>
                 <p className="text-muted-base text-xs">Due day {card.dueDay}</p>
               </div>
-              <form action={handleDeleteCard.bind(null, card.id)}>
-                <button type="submit" className="text-muted-base hover:text-red-400 transition-colors">
-                  <Trash2 size={15} />
-                </button>
-              </form>
+              <FireAndForgetButton
+                action={() => deleteCreditCard(card.id)}
+                className="text-muted-base hover:text-red-400 transition-colors"
+              >
+                <Trash2 size={15} />
+              </FireAndForgetButton>
             </div>
           ))}
         </div>

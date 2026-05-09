@@ -1,5 +1,8 @@
+"use client";
+
 import { updateIncomeEntryStatus } from "@/lib/actions/income";
 import { formatCurrency } from "@/lib/utils";
+import { FireAndForgetButton } from "@/components/ui/fire-and-forget-button";
 
 type Entry = {
   id: number; name: string; amount: number; status: string;
@@ -24,9 +27,6 @@ export function IncomeEntryList({ entries }: { entries: Entry[] }) {
         const dateLabel = new Date(e.expectedDate + "T00:00:00").toLocaleDateString("en-US", {
           month: "short", day: "numeric",
         });
-        async function markArrived(_formData: FormData) {
-          await updateIncomeEntryStatus(e.id, "arrived");
-        }
 
         return (
           <div key={e.id} className="flex items-center justify-between p-4 gap-3">
@@ -40,11 +40,12 @@ export function IncomeEntryList({ entries }: { entries: Entry[] }) {
                 {s.label}
               </span>
               {e.status !== "arrived" && (
-                <form action={markArrived}>
-                  <button type="submit" className="text-[10px] text-green-400 hover:text-green-300 underline">
-                    Mark arrived
-                  </button>
-                </form>
+                <FireAndForgetButton
+                  action={() => updateIncomeEntryStatus(e.id, "arrived")}
+                  className="text-[10px] text-green-400 hover:text-green-300 underline"
+                >
+                  Mark arrived
+                </FireAndForgetButton>
               )}
             </div>
           </div>
