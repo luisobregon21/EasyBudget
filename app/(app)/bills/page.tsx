@@ -1,6 +1,7 @@
 import { getUserBills, deleteBill } from "@/lib/actions/bills";
 import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { FireAndForgetButton } from "@/components/ui/fire-and-forget-button";
 import Link from "next/link";
 import { Trash2, Plus, Pencil } from "lucide-react";
 
@@ -12,11 +13,6 @@ const MONTHS_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct
 
 export default async function BillsPage() {
   const billsList = await getUserBills();
-
-  async function handleDelete(id: number) {
-    "use server";
-    await deleteBill(id);
-  }
 
   return (
     <div className="space-y-5">
@@ -64,11 +60,12 @@ export default async function BillsPage() {
                 <Link href={`/bills/${b.id}/edit`} className="text-muted-base hover:text-foreground transition-colors">
                   <Pencil size={14} />
                 </Link>
-                <form action={handleDelete.bind(null, b.id)}>
-                  <button type="submit" className="text-muted-base hover:text-red-400 transition-colors">
-                    <Trash2 size={15} />
-                  </button>
-                </form>
+                <FireAndForgetButton
+                  action={() => deleteBill(b.id)}
+                  className="text-muted-base hover:text-red-400 transition-colors"
+                >
+                  <Trash2 size={15} />
+                </FireAndForgetButton>
               </div>
             </div>
           );
