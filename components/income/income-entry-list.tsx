@@ -24,7 +24,9 @@ export function IncomeEntryList({ entries }: { entries: Entry[] }) {
         const dateLabel = new Date(e.expectedDate + "T00:00:00").toLocaleDateString("en-US", {
           month: "short", day: "numeric",
         });
-        const markArrivedAction = updateIncomeEntryStatus.bind(null, e.id, "arrived");
+        async function markArrived(_formData: FormData) {
+          await updateIncomeEntryStatus(e.id, "arrived");
+        }
 
         return (
           <div key={e.id} className="flex items-center justify-between p-4 gap-3">
@@ -38,7 +40,7 @@ export function IncomeEntryList({ entries }: { entries: Entry[] }) {
                 {s.label}
               </span>
               {e.status !== "arrived" && (
-                <form action={markArrivedAction}>
+                <form action={markArrived}>
                   <button type="submit" className="text-[10px] text-green-400 hover:text-green-300 underline">
                     Mark arrived
                   </button>

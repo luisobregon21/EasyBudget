@@ -1,9 +1,12 @@
+"use client";
+import { useActionState, useEffect } from "react";
 import { deleteSavingsAllocation, createSavingsAllocation } from "@/lib/actions/goals";
 import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Trash2 } from "lucide-react";
+import { toast } from "sonner";
 
 type Allocation = { id: number; name: string; percentage: number };
 
@@ -16,6 +19,13 @@ export function SavingsAllocationList({
 }) {
   const totalPct = allocations.reduce((s, a) => s + a.percentage, 0);
   const remaining = 100 - totalPct;
+
+  const [state, formAction, pending] = useActionState(createSavingsAllocation, null);
+
+  useEffect(() => {
+    if (state?.success) toast.success(state.message);
+    if (state?.success === false) toast.error(state.message);
+  }, [state]);
 
   return (
     <div className="space-y-4">
@@ -36,6 +46,9 @@ export function SavingsAllocationList({
         )}
         {allocations.map((a) => {
           const dollars = savingsPot * (a.percentage / 100);
+          async function handleDelete(formData: FormData) {
+            await deleteSavingsAllocation(a.id);
+          }
           return (
             <div key={a.id} className="flex items-center justify-between p-4 gap-3">
               <div className="min-w-0">
@@ -44,7 +57,7 @@ export function SavingsAllocationList({
               </div>
               <div className="flex items-center gap-3 shrink-0">
                 <span className="text-accent-purple-light font-bold">{a.percentage}%</span>
-                <form action={deleteSavingsAllocation.bind(null, a.id)}>
+                <form action={handleDelete}>
                   <button type="submit" className="text-muted-base hover:text-red-400 transition-colors">
                     <Trash2 size={14} />
                   </button>
@@ -55,7 +68,7 @@ export function SavingsAllocationList({
         })}
       </div>
 
-      <form action={createSavingsAllocation}
+      <form action={formAction}
         className="rounded-2xl bg-white/[0.03] border border-accent-purple/10 p-4 space-y-3">
         <p className="text-muted-base text-xs uppercase tracking-widest">Add Destination</p>
         <div className="flex gap-3">
@@ -70,8 +83,11 @@ export function SavingsAllocationList({
               className="bg-bg-deep border-accent-purple/20 text-foreground" />
           </div>
         </div>
-        <Button type="submit" className="w-full bg-gradient-brand text-white font-bold">
-          Add Destination
+        {state && !state.success && (
+          <p className="text-sm text-red-400">{state.message}</p>
+        )}
+        <Button type="submit" disabled={pending} className="w-full bg-gradient-brand text-white font-bold">
+          {pending ? "Saving…" : "Add Destination"}
         </Button>
       </form>
     </div>

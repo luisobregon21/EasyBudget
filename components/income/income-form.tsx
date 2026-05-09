@@ -1,13 +1,23 @@
 "use client";
-import { useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { createIncomeEntry } from "@/lib/actions/income";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
 
 export function IncomeForm({ monthId }: { monthId: number }) {
   const [frequency, setFrequency] = useState<"biweekly" | "monthly" | "one_time">("monthly");
   const [open, setOpen] = useState(false);
+  const [state, formAction, pending] = useActionState(createIncomeEntry, null);
+
+  useEffect(() => {
+    if (state?.success) {
+      toast.success(state.message);
+      setOpen(false);
+    }
+    if (state?.success === false) toast.error(state.message);
+  }, [state]);
 
   if (!open) {
     return (
@@ -17,13 +27,8 @@ export function IncomeForm({ monthId }: { monthId: number }) {
     );
   }
 
-  async function handleSubmit(formData: FormData) {
-    await createIncomeEntry(formData);
-    setOpen(false);
-  }
-
   return (
-    <form action={handleSubmit} className="rounded-2xl bg-white/[0.03] border border-accent-purple/10 p-4 space-y-4">
+    <form action={formAction} className="rounded-2xl bg-white/[0.03] border border-accent-purple/10 p-4 space-y-4">
       <p className="text-muted-base text-xs uppercase tracking-widest">Add Income</p>
       <input type="hidden" name="monthId" value={monthId} />
 
@@ -78,8 +83,14 @@ export function IncomeForm({ monthId }: { monthId: number }) {
         </div>
       )}
 
+      {state && !state.success && (
+        <p className="text-sm text-red-400">{state.message}</p>
+      )}
+
       <div className="flex gap-2">
-        <Button type="submit" className="flex-1 bg-gradient-brand text-white font-bold">Save</Button>
+        <Button type="submit" disabled={pending} className="flex-1 bg-gradient-brand text-white font-bold">
+          {pending ? "Saving…" : "Save"}
+        </Button>
         <Button type="button" variant="outline" onClick={() => setOpen(false)}
           className="border-accent-purple/20 text-muted-base">Cancel</Button>
       </div>

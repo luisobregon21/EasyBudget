@@ -1,7 +1,5 @@
-import { getCreditCards, createCreditCard, deleteCreditCard } from "@/lib/actions/credit-cards";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { getCreditCards, deleteCreditCard } from "@/lib/actions/credit-cards";
+import { CreditCardForm } from "@/components/settings/credit-card-form";
 import { Trash2, CreditCard } from "lucide-react";
 
 export default async function SettingsPage() {
@@ -10,6 +8,7 @@ export default async function SettingsPage() {
   async function handleDeleteCard(cardId: number) {
     "use server";
     await deleteCreditCard(cardId);
+    return undefined;
   }
 
   return (
@@ -44,24 +43,7 @@ export default async function SettingsPage() {
           ))}
         </div>
 
-        <form action={createCreditCard} className="rounded-2xl bg-white/[0.03] border border-accent-purple/10 p-4 space-y-3">
-          <p className="text-muted-base text-xs uppercase tracking-widest">Add a Card</p>
-          <div className="flex gap-3">
-            <div className="flex-1 space-y-1">
-              <Label className="text-muted-base text-[10px] uppercase tracking-widest">Card Name</Label>
-              <Input name="name" required placeholder="Chase Sapphire"
-                className="bg-bg-deep border-accent-purple/20 text-foreground" />
-            </div>
-            <div className="w-24 space-y-1">
-              <Label className="text-muted-base text-[10px] uppercase tracking-widest">Due Day</Label>
-              <Input name="dueDay" type="number" min="1" max="31" required placeholder="15"
-                className="bg-bg-deep border-accent-purple/20 text-foreground" />
-            </div>
-          </div>
-          <Button type="submit" className="bg-gradient-brand text-white font-bold w-full">
-            Add Card
-          </Button>
-        </form>
+        <CreditCardForm />
       </section>
     </div>
   );
