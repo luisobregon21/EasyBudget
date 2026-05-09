@@ -1,4 +1,4 @@
-const CACHE = "easybudget-v1";
+const CACHE = "easybudget-v2";
 const SHELL = ["/", "/manifest.json"];
 
 self.addEventListener("install", (e) => {
@@ -17,6 +17,7 @@ self.addEventListener("activate", (e) => {
 
 self.addEventListener("fetch", (e) => {
   if (e.request.method !== "GET") return;
+  if (e.request.mode === "navigate") return; // let browser handle navigations and auth redirects
   const url = new URL(e.request.url);
   if (url.pathname.startsWith("/_next/")) return;
   e.respondWith(
