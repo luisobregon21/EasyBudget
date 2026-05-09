@@ -61,7 +61,7 @@ export default async function BillsPage() {
                   <Pencil size={14} />
                 </Link>
                 <FireAndForgetButton
-                  action={() => deleteBill(b.id)}
+                  action={deleteBill.bind(null, b.id)}
                   className="text-muted-base hover:text-red-400 transition-colors"
                 >
                   <Trash2 size={15} />

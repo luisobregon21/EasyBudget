@@ -39,7 +39,7 @@ export default async function SettingsPage() {
                 </p>
               </div>
               <FireAndForgetButton
-                action={() => deleteCreditCard(card.id)}
+                action={deleteCreditCard.bind(null, card.id)}
                 className="text-muted-base hover:text-red-400 transition-colors"
               >
                 <Trash2 size={15} />
