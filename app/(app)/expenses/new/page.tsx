@@ -1,5 +1,6 @@
 import { requireSession } from "@/lib/auth/session";
 import { getUserTags } from "@/lib/actions/tags";
+import { getCreditCards } from "@/lib/actions/credit-cards";
 import { createExpense } from "@/lib/actions/expenses";
 import { currentYearMonth } from "@/lib/utils";
 import { PaymentMethodPicker } from "@/components/expenses/payment-method-picker";
@@ -13,7 +14,7 @@ import { ChevronLeft } from "lucide-react";
 
 export default async function NewExpensePage() {
   await requireSession();
-  const tags = await getUserTags();
+  const [tags, paymentMethods] = await Promise.all([getUserTags(), getCreditCards()]);
   const { year, month } = currentYearMonth();
   const today = new Date().toISOString().split("T")[0];
 
@@ -52,7 +53,7 @@ export default async function NewExpensePage() {
 
         <div className="space-y-1">
           <Label className="text-muted-base text-[10px] uppercase tracking-widest">Paid with</Label>
-          <PaymentMethodPicker />
+          <PaymentMethodPicker methods={paymentMethods} />
         </div>
 
         <Button type="submit" className="w-full bg-gradient-brand text-white font-bold py-3 rounded-xl">
