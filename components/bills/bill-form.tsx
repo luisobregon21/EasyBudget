@@ -11,7 +11,7 @@ const MONTHS = [
 ];
 
 type ActionResult = { success: boolean; message: string };
-type CreditCard = { id: number; name: string; dueDay: number | null };
+type CreditCard = { id: number; name: string; dueDay: number | null; type: string };
 
 interface BillFormProps {
   creditCards: CreditCard[];
@@ -127,15 +127,15 @@ export function BillForm({ creditCards, action, defaultValues = {}, submitLabel 
         </select>
       </div>
 
-      {type === "subscription" && (
+      {creditCards.length > 0 && (
         <div className="space-y-1">
-          <Label className="text-muted-base text-[10px] uppercase tracking-widest">Credit Card</Label>
+          <Label className="text-muted-base text-[10px] uppercase tracking-widest">Pay with (optional)</Label>
           <select name="creditCardId"
             defaultValue={defaultValues.creditCardId ?? "none"}
             className="w-full bg-bg-deep border border-accent-purple/20 text-foreground rounded-xl px-4 py-2.5">
             <option value="none">None</option>
             {creditCards.map((c) => (
-              <option key={c.id} value={c.id}>{c.name} (due day {c.dueDay})</option>
+              <option key={c.id} value={c.id}>{c.name}</option>
             ))}
           </select>
         </div>
