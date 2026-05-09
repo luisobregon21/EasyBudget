@@ -82,3 +82,34 @@ export async function deleteExpense(expenseId: number) {
   await db.delete(expenses).where(and(eq(expenses.id, expenseId), eq(expenses.userId, user.id!)));
   revalidatePath("/");
 }
+
+export async function getExpensesByPaymentMethod(monthId: number) {
+  const user = await requireSession();
+  const db = getDb();
+
+  const rows = await db.select({
+    paymentMethod:   expenses.paymentMethod,
+    paymentMethodId: expenses.paymentMethodId,
+    methodName:      creditCards.name,
+    methodType:      creditCards.type,
+    amountUsd:       expenses.amountUsd,
+  })
+  .from(expenses)
+  .leftJoin(creditCards, eq(expenses.paymentMethodId, creditCards.id))
+  .where(and(eq(expenses.monthId, monthId), eq(expenses.userId, user.id!)));
+
+  const groups: Record<string, { name: string; total: number }> = {};
+  for (const row of rows) {
+    const key = row.paymentMethodId ? String(row.paymentMethodId) : "cash";
+    const name = row.methodName ?? (
+      row.paymentMethod === "cash" ? "Cash" :
+      row.paymentMethod === "credit_card" ? "Credit Card" : "Debit Card"
+    );
+    if (!groups[key]) groups[key] = { name, total: 0 };
+    groups[key].total += row.amountUsd;
+  }
+
+  return Object.values(groups)
+    .filter((g) => g.total > 0)
+    .sort((a, b) => b.total - a.total);
+}
