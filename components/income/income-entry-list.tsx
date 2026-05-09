@@ -6,7 +6,7 @@ import { FireAndForgetButton } from "@/components/ui/fire-and-forget-button";
 
 type Entry = {
   id: number; name: string; amount: number; status: string;
-  expectedDate: string; arrivedDate: string | null; sourceId: number | null;
+  expectedDate: string; arrivedDate: string | null;
 };
 
 const STATUS_STYLE: Record<string, { label: string; cls: string }> = {

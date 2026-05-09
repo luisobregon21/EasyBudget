@@ -1,5 +1,5 @@
 "use client";
-import { useState, useActionState, useEffect } from "react";
+import { useState, useActionState, useEffect, useRef } from "react";
 import { createCreditCard } from "@/lib/actions/credit-cards";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,13 +9,15 @@ import { toast } from "sonner";
 export function CreditCardForm() {
   const [formKey, setFormKey] = useState(0);
   const [state, formAction, pending] = useActionState(createCreditCard, null);
+  const toastedState = useRef<typeof state>(null);
 
   useEffect(() => {
-    if (state?.success) {
+    if (!state || state === toastedState.current) return;
+    toastedState.current = state;
+    if (state.success) {
       toast.success(state.message);
       setFormKey((k) => k + 1);  // reset form
-    }
-    if (state?.success === false) toast.error(state.message);
+    } else toast.error(state.message);
   }, [state]);
 
   return (

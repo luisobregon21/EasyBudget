@@ -1,5 +1,5 @@
 "use client";
-import { useState, useActionState, useEffect } from "react";
+import { useState, useActionState, useEffect, useRef } from "react";
 import { deleteSavingsAllocation, createSavingsAllocation } from "@/lib/actions/goals";
 import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -23,13 +23,15 @@ export function SavingsAllocationList({
 
   const [formKey, setFormKey] = useState(0);
   const [state, formAction, pending] = useActionState(createSavingsAllocation, null);
+  const toastedState = useRef<typeof state>(null);
 
   useEffect(() => {
-    if (state?.success) {
+    if (!state || state === toastedState.current) return;
+    toastedState.current = state;
+    if (state.success) {
       toast.success(state.message);
       setFormKey((k) => k + 1);  // reset form
-    }
-    if (state?.success === false) toast.error(state.message);
+    } else toast.error(state.message);
   }, [state]);
 
   return (

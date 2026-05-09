@@ -1,5 +1,5 @@
 "use client";
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { createIncomeEntry } from "@/lib/actions/income";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,13 +10,15 @@ export function IncomeForm({ monthId }: { monthId: number }) {
   const [frequency, setFrequency] = useState<"biweekly" | "monthly" | "one_time">("monthly");
   const [open, setOpen] = useState(false);
   const [state, formAction, pending] = useActionState(createIncomeEntry, null);
+  const toastedState = useRef<typeof state>(null);
 
   useEffect(() => {
-    if (state?.success) {
+    if (!state || state === toastedState.current) return;
+    toastedState.current = state;
+    if (state.success) {
       toast.success(state.message);
       setOpen(false);
-    }
-    if (state?.success === false) toast.error(state.message);
+    } else toast.error(state.message);
   }, [state]);
 
   if (!open) {
