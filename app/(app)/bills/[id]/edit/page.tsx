@@ -10,10 +10,11 @@ export default async function EditBillPage({ params }: { params: Promise<{ id: s
   const [bill, cards] = await Promise.all([getBillById(parseInt(id)), getCreditCards()]);
   if (!bill) notFound();
 
-  async function handleUpdate(formData: FormData) {
+  async function handleUpdate(prevState: unknown, formData: FormData) {
     "use server";
-    await updateBill(bill!.id, formData);
-    redirect("/bills");
+    const result = await updateBill(bill!.id, prevState, formData);
+    if (result.success) redirect("/bills");
+    return result;
   }
 
   return (

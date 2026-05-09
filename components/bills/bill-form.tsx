@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,11 +9,12 @@ const MONTHS = [
   "July","August","September","October","November","December"
 ];
 
+type ActionResult = { success: boolean; message: string };
 type CreditCard = { id: number; name: string; dueDay: number };
 
 interface BillFormProps {
   creditCards: CreditCard[];
-  action: (formData: FormData) => Promise<void>;
+  action: (prevState: unknown, formData: FormData) => Promise<ActionResult>;
   defaultValues?: {
     name?: string;
     amount?: number;
@@ -30,11 +31,12 @@ interface BillFormProps {
 }
 
 export function BillForm({ creditCards, action, defaultValues = {}, submitLabel = "Save Bill" }: BillFormProps) {
+  const [state, formAction, pending] = useActionState(action, null);
   const [frequency, setFrequency] = useState<"monthly" | "yearly">(defaultValues.frequency ?? "monthly");
   const [type, setType] = useState(defaultValues.type ?? "subscription");
 
   return (
-    <form action={action} className="space-y-5">
+    <form action={formAction} className="space-y-5">
       <div className="space-y-1">
         <Label className="text-muted-base text-[10px] uppercase tracking-widest">Name</Label>
         <Input name="name" required placeholder="Netflix" defaultValue={defaultValues.name}
@@ -136,8 +138,12 @@ export function BillForm({ creditCards, action, defaultValues = {}, submitLabel 
           className="bg-bg-deep border-accent-purple/20 text-foreground" />
       </div>
 
-      <Button type="submit" className="w-full bg-gradient-brand text-white font-bold py-3 rounded-xl">
-        {submitLabel}
+      {state && !state.success && (
+        <p className="text-sm text-red-400">{state.message}</p>
+      )}
+
+      <Button type="submit" disabled={pending} className="w-full bg-gradient-brand text-white font-bold py-3 rounded-xl">
+        {pending ? "Saving…" : submitLabel}
       </Button>
     </form>
   );

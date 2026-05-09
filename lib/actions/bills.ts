@@ -97,29 +97,45 @@ function parseBillFormData(formData: FormData) {
   };
 }
 
-export async function createBill(formData: FormData) {
-  const user = await requireSession();
-  const db = getDb();
-  await db.insert(bills).values({ userId: user.id!, ...parseBillFormData(formData) });
-  revalidatePath("/bills");
-  revalidatePath("/");
+export async function createBill(prevState: unknown, formData: FormData) {
+  try {
+    const user = await requireSession();
+    if (!user) return { success: false, message: "Not authenticated" };
+    const db = getDb();
+    await db.insert(bills).values({ userId: user.id!, ...parseBillFormData(formData) });
+    revalidatePath("/bills");
+    revalidatePath("/");
+    return { success: true, message: "Bill added" };
+  } catch (e) {
+    return { success: false, message: e instanceof Error ? e.message : "Failed to add bill" };
+  }
 }
 
-export async function updateBill(billId: number, formData: FormData) {
-  const user = await requireSession();
-  const db = getDb();
-  await db.update(bills)
-    .set(parseBillFormData(formData))
-    .where(and(eq(bills.id, billId), eq(bills.userId, user.id!)));
-  revalidatePath("/bills");
-  revalidatePath("/");
+export async function updateBill(billId: number, prevState: unknown, formData: FormData) {
+  try {
+    const user = await requireSession();
+    const db = getDb();
+    await db.update(bills)
+      .set(parseBillFormData(formData))
+      .where(and(eq(bills.id, billId), eq(bills.userId, user.id!)));
+    revalidatePath("/bills");
+    revalidatePath("/");
+    return { success: true, message: "Bill updated" };
+  } catch (e) {
+    return { success: false, message: e instanceof Error ? e.message : "Failed to update bill" };
+  }
 }
 
 export async function deleteBill(billId: number) {
-  const user = await requireSession();
-  const db = getDb();
-  await db.update(bills).set({ active: false })
-    .where(and(eq(bills.id, billId), eq(bills.userId, user.id!)));
-  revalidatePath("/bills");
-  revalidatePath("/");
+  try {
+    const user = await requireSession();
+    const db = getDb();
+    await db.update(bills).set({ active: false })
+      .where(and(eq(bills.id, billId), eq(bills.userId, user.id!)));
+    revalidatePath("/bills");
+    revalidatePath("/");
+    return { success: true, message: "Bill removed" };
+  } catch (e) {
+    return { success: false, message: e instanceof Error ? e.message : "Failed to remove bill" };
+  }
 }
