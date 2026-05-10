@@ -4,9 +4,9 @@ import { formatCurrency } from "@/lib/utils";
 
 const CURRENCIES = ["USD", "NIO", "GTQ", "MXN", "EUR", "GBP", "CAD"];
 
-export function CurrencyPicker() {
-  const [currency, setCurrency] = useState("USD");
-  const [amount, setAmount]     = useState("");
+export function CurrencyPicker({ defaultCurrency = "USD", defaultAmount = "" }: { defaultCurrency?: string; defaultAmount?: string }) {
+  const [currency, setCurrency] = useState(defaultCurrency);
+  const [amount, setAmount]     = useState(defaultAmount);
   const [rate, setRate]         = useState(1);
   const [loading, setLoading]   = useState(false);
 

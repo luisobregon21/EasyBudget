@@ -12,12 +12,12 @@ const BUCKET_STYLES: Record<Bucket, string> = {
   wants:   "bg-violet-500/15 border-violet-500/40 text-violet-400",
 };
 
-export function TagPickerWrapper({ tags }: { tags: Tag[] }) {
-  const [bucket, setBucket] = useState<Bucket>("wants");
+export function TagPickerWrapper({ tags, defaultTagId, defaultBucket }: { tags: Tag[]; defaultTagId?: number | null; defaultBucket?: Bucket }) {
+  const [bucket, setBucket] = useState<Bucket>(defaultBucket ?? "wants");
 
   return (
     <div className="space-y-3">
-      <TagPicker tags={tags} onBucketChange={setBucket} />
+      <TagPicker tags={tags} onBucketChange={setBucket} defaultTagId={defaultTagId} />
       <div className="space-y-1">
         <p className="text-muted-base text-[10px] uppercase tracking-widest">Budget bucket</p>
         <div className="flex gap-2">

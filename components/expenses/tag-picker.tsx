@@ -4,11 +4,12 @@ import { cn } from "@/lib/utils";
 
 type Tag = { id: number; name: string; emoji: string; defaultBucket: "savings" | "bills" | "wants" };
 
-export function TagPicker({ tags, onBucketChange }: {
+export function TagPicker({ tags, onBucketChange, defaultTagId }: {
   tags: Tag[];
   onBucketChange?: (bucket: "savings" | "bills" | "wants") => void;
+  defaultTagId?: number | null;
 }) {
-  const [selected, setSelected] = useState<number | null>(null);
+  const [selected, setSelected] = useState<number | null>(defaultTagId ?? null);
 
   function select(tag: Tag) {
     setSelected(tag.id);
