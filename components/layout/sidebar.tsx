@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, BarChart2, Receipt, Plane, Tag, Target, Settings, Wallet } from "lucide-react";
+import { Home, BarChart2, Receipt, Plane, Tag, Target, Settings, Wallet, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV = [
@@ -14,13 +14,25 @@ const NAV = [
   { href: "/goals",   label: "Goals",    icon: Target },
 ];
 
-export function Sidebar() {
+interface Props {
+  onAddExpense: () => void;
+}
+
+export function Sidebar({ onAddExpense }: Props) {
   const path = usePathname();
   return (
     <nav className="hidden md:flex flex-col w-48 bg-bg-deep/70 border-r border-accent-purple/10 p-4 gap-1">
       <span className="gradient-text font-black text-lg tracking-widest px-2 pb-4 mb-2 border-b border-accent-purple/10">
         EASYBUDGET
       </span>
+      <button
+        type="button"
+        onClick={onAddExpense}
+        className="flex items-center justify-center gap-2 px-3 py-2.5 mb-2 rounded-xl text-sm font-bold text-white bg-gradient-to-br from-amber-400 to-pink-500 shadow-md shadow-amber-500/30 transition-transform active:scale-95 hover:opacity-95"
+      >
+        <Plus size={16} />
+        Add Expense
+      </button>
       {NAV.map(({ href, label, icon: Icon }) => (
         <Link key={href} href={href}
           className={cn(
