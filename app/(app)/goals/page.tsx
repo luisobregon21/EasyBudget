@@ -4,6 +4,7 @@ import { getSavingsAllocations } from "@/lib/actions/goals";
 import { currentYearMonth, formatCurrency, calcIncomeTotals } from "@/lib/utils";
 import { MonthSwitcher } from "@/components/layout/month-switcher";
 import { SavingsAllocationList } from "@/components/goals/savings-allocation-list";
+import { AllocationEditor } from "@/components/goals/allocation-editor";
 
 export default async function GoalsPage({
   searchParams,
@@ -46,13 +47,20 @@ export default async function GoalsPage({
 
       <div className="grid grid-cols-3 gap-3">
         {POTS.map((p) => (
-          <div key={p.label} className={`rounded-2xl ${p.bg} border ${p.border} p-4 text-center`}>
-            <p className={`text-[10px] uppercase tracking-wider ${p.color} mb-1`}>{p.label}</p>
-            <p className={`text-xl font-bold ${p.color}`}>{formatCurrency(p.amount)}</p>
-            <p className="text-muted-base text-[10px] mt-0.5">{p.pct}% of income</p>
+          <div key={p.label} className={`rounded-2xl ${p.bg} border ${p.border} p-3 text-center min-w-0`}>
+            <p className={`text-[9px] uppercase tracking-wider ${p.color} mb-1 truncate`}>{p.label}</p>
+            <p className={`text-sm font-bold ${p.color} break-all leading-tight`}>{formatCurrency(p.amount)}</p>
+            <p className="text-muted-base text-[9px] mt-0.5">{p.pct}%</p>
           </div>
         ))}
       </div>
+
+      <AllocationEditor
+        monthId={monthData.id}
+        savingsPct={monthData.savingsPct ?? 20}
+        billsPct={monthData.billsPct ?? 70}
+        wantsPct={monthData.wantsPct ?? 10}
+      />
 
       <SavingsAllocationList allocations={allocations} savingsPot={savingsPot} />
     </div>
