@@ -16,6 +16,7 @@ export async function getUserBills() {
       frequency: bills.frequency,
       renewalMonth: bills.renewalMonth,
       renewalDay: bills.renewalDay,
+      quarterlyDates: bills.quarterlyDates,
       description: bills.description,
       type: bills.type,
       creditCardId: bills.creditCardId,
@@ -55,6 +56,7 @@ export async function getUpcomingBills(daysAhead = 7) {
       frequency: bills.frequency,
       renewalMonth: bills.renewalMonth,
       renewalDay: bills.renewalDay,
+      quarterlyDates: bills.quarterlyDates,
       type: bills.type,
     })
     .from(bills)
@@ -63,6 +65,15 @@ export async function getUpcomingBills(daysAhead = 7) {
   const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
 
   return allBills.filter((b) => {
+    if (b.frequency === "quarterly") {
+      if (!b.quarterlyDates) return false;
+      const dates: { month: number; day: number }[] = JSON.parse(b.quarterlyDates);
+      return dates.some(({ month, day }) => {
+        if (month !== todayMonth) return false;
+        const daysUntil = day - todayDay;
+        return daysUntil >= 0 && daysUntil <= daysAhead;
+      });
+    }
     if (b.frequency === "yearly") {
       if (b.renewalMonth !== todayMonth) return false;
       const daysUntil = (b.renewalDay ?? 1) - todayDay;
@@ -75,13 +86,24 @@ export async function getUpcomingBills(daysAhead = 7) {
   });
 }
 
+type QuarterlyDate = { month: number; day: number };
+
 function parseBillFormData(formData: FormData) {
-  const frequency = formData.get("frequency") as "monthly" | "yearly";
+  const frequency = formData.get("frequency") as "monthly" | "yearly" | "quarterly";
   const type = formData.get("type") as "utility" | "subscription" | "credit_card" | "loan" | "other";
   const creditCardIdRaw = formData.get("creditCardId") as string;
   const creditCardId = creditCardIdRaw && creditCardIdRaw !== "none"
     ? parseInt(creditCardIdRaw)
     : null;
+
+  let quarterlyDates: string | null = null;
+  if (frequency === "quarterly") {
+    const dates: QuarterlyDate[] = [1, 2, 3, 4].map((n) => ({
+      month: parseInt(formData.get(`q${n}Month`) as string),
+      day:   parseInt(formData.get(`q${n}Day`)   as string),
+    }));
+    quarterlyDates = JSON.stringify(dates);
+  }
 
   return {
     name: (formData.get("name") as string).trim(),
@@ -90,9 +112,10 @@ function parseBillFormData(formData: FormData) {
     frequency,
     dueDay: frequency === "monthly" ? parseInt(formData.get("dueDay") as string) : 1,
     renewalMonth: frequency === "yearly" ? parseInt(formData.get("renewalMonth") as string) : null,
-    renewalDay: frequency === "yearly" ? parseInt(formData.get("renewalDay") as string) : null,
+    renewalDay:   frequency === "yearly" ? parseInt(formData.get("renewalDay")   as string) : null,
+    quarterlyDates,
     type,
-    creditCardId: type === "subscription" ? creditCardId : null,
+    creditCardId,
     reminderDaysBefore: parseInt((formData.get("reminderDaysBefore") as string) || "3"),
   };
 }

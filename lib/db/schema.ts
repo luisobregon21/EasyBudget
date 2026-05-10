@@ -122,9 +122,10 @@ export const bills = pgTable("bills", {
   name:               text("name").notNull(),
   amount:             real("amount").notNull(),
   dueDay:             integer("due_day").notNull().default(1),
-  frequency:          text("frequency").$type<"monthly" | "yearly">().notNull().default("monthly"),
+  frequency:          text("frequency").$type<"monthly" | "yearly" | "quarterly">().notNull().default("monthly"),
   renewalMonth:       integer("renewal_month"),   // 1–12, yearly only
   renewalDay:         integer("renewal_day"),     // 1–31, yearly only
+  quarterlyDates:     text("quarterly_dates"),    // JSON: [{month,day},{month,day},{month,day},{month,day}]
   description:        text("description"),
   type:               text("type").$type<"utility" | "subscription" | "credit_card" | "loan" | "other">().notNull(),
   creditCardId:       integer("credit_card_id").references(() => creditCards.id, { onDelete: "set null" }),

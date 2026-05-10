@@ -20,10 +20,11 @@ interface BillFormProps {
     name?: string;
     amount?: number;
     description?: string;
-    frequency?: "monthly" | "yearly";
+    frequency?: "monthly" | "yearly" | "quarterly";
     dueDay?: number;
     renewalMonth?: number | null;
     renewalDay?: number | null;
+    quarterlyDates?: string | null;
     type?: string;
     creditCardId?: number | null;
     reminderDaysBefore?: number;
@@ -42,7 +43,19 @@ export function BillForm({ creditCards, action, defaultValues = {}, submitLabel 
     else toast.error(state.message);
   }, [state]);
 
-  const [frequency, setFrequency] = useState<"monthly" | "yearly">(defaultValues.frequency ?? "monthly");
+  const [frequency, setFrequency] = useState<"monthly" | "yearly" | "quarterly">(defaultValues.frequency ?? "monthly");
+
+  // IRS 2026 estimated tax payment dates
+  const IRS_DEFAULTS = [
+    { month: 4,  day: 15 },
+    { month: 6,  day: 15 },
+    { month: 9,  day: 15 },
+    { month: 1,  day: 15 }, // Jan of next year
+  ];
+  const defaultQuarterlyDates: { month: number; day: number }[] =
+    defaultValues.quarterlyDates
+      ? JSON.parse(defaultValues.quarterlyDates)
+      : IRS_DEFAULTS;
   const [type, setType] = useState(defaultValues.type ?? "subscription");
 
   return (
@@ -68,8 +81,8 @@ export function BillForm({ creditCards, action, defaultValues = {}, submitLabel 
 
       <div className="space-y-1">
         <Label className="text-muted-base text-[10px] uppercase tracking-widest">Frequency</Label>
-        <div className="flex gap-2">
-          {(["monthly", "yearly"] as const).map((f) => (
+        <div className="flex gap-2 flex-wrap">
+          {(["monthly", "yearly", "quarterly"] as const).map((f) => (
             <button key={f} type="button"
               onClick={() => setFrequency(f)}
               className={`px-4 py-2 rounded-xl text-sm font-semibold capitalize transition-colors ${
@@ -111,6 +124,30 @@ export function BillForm({ creditCards, action, defaultValues = {}, submitLabel 
               defaultValue={defaultValues.renewalDay ?? ""}
               className="bg-bg-deep border-accent-purple/20 text-foreground" />
           </div>
+        </div>
+      )}
+
+      {frequency === "quarterly" && (
+        <div className="space-y-3">
+          <Label className="text-muted-base text-[10px] uppercase tracking-widest">Payment Dates</Label>
+          <p className="text-muted-base text-[11px]">Pre-filled with IRS 2026 estimated tax dates. Adjust if needed.</p>
+          {([1, 2, 3, 4] as const).map((n) => {
+            const d = defaultQuarterlyDates[n - 1] ?? { month: 1, day: 15 };
+            return (
+              <div key={n} className="flex gap-3 items-center">
+                <span className="text-muted-base text-xs w-6 shrink-0">Q{n}</span>
+                <select name={`q${n}Month`} defaultValue={d.month}
+                  className="flex-1 bg-bg-deep border border-accent-purple/20 text-foreground rounded-xl px-3 py-2 text-sm">
+                  {MONTHS.map((m, i) => (
+                    <option key={m} value={i + 1}>{m}</option>
+                  ))}
+                </select>
+                <Input name={`q${n}Day`} type="number" min="1" max="31"
+                  defaultValue={d.day}
+                  className="w-20 bg-bg-deep border-accent-purple/20 text-foreground text-sm" />
+              </div>
+            );
+          })}
         </div>
       )}
 
