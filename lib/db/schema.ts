@@ -84,8 +84,8 @@ export const trips = pgTable("trips", {
   name:            text("name").notNull(),
   destination:     text("destination").notNull(),
   startDate:       date("start_date").notNull(),
-  endDate:         date("end_date").notNull(),
-  budgetUsd:       real("budget_usd").notNull(),
+  endDate:         date("end_date"),   // nullable — ongoing trips have no end date
+  budgetUsd:       real("budget_usd"),   // nullable — plan-as-you-go trips have no budget
   primaryCurrency: text("primary_currency").notNull().default("USD"),
 });
 
