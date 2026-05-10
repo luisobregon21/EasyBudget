@@ -1,6 +1,6 @@
 "use server";
 
-import { db, users } from "@/lib/db";
+import { getDb, users } from "@/lib/db";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
@@ -14,6 +14,7 @@ const registerSchema = z.object({
 export async function registerUser(data: z.infer<typeof registerSchema>) {
   const parsed = registerSchema.parse(data);
 
+  const db = getDb();
   const [existing] = await db
     .select({ id: users.id })
     .from(users)

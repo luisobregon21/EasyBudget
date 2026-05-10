@@ -1,7 +1,7 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
-import { db, users } from "@/lib/db";
+import { getDb, users } from "@/lib/db";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
@@ -12,7 +12,7 @@ const credentialsSchema = z.object({
 });
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
-  adapter: DrizzleAdapter(db),
+  adapter: DrizzleAdapter(getDb()),
   session: { strategy: "jwt" },
   pages: { signIn: "/login" },
   providers: [
@@ -26,7 +26,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         if (!parsed.success) return null;
 
         const { email, password } = parsed.data;
-        const [user] = await db
+        const [user] = await getDb()
           .select()
           .from(users)
           .where(eq(users.email, email))
