@@ -30,27 +30,27 @@ export function HeroKpis({ thisMonthSpent, lastMonthSpent, income, targetSpendPc
   if (income === 0) {
     vsTargetChip = (
       <div className="flex-1 rounded-2xl bg-white/[0.03] border border-accent-purple/10 p-4">
-        <p className="text-muted-base text-[9px] uppercase tracking-widest font-semibold">Vs Target</p>
+        <p className="text-muted-base text-[9px] uppercase tracking-widest font-semibold">Budget</p>
         <Link href="/income" className="text-sm text-accent-gold underline mt-1 block">
           Set income to see target
         </Link>
       </div>
     );
-  } else if (delta < 0) {
+  } else if (delta <= 0) {
     vsTargetChip = (
       <Chip
-        label="Vs Target"
-        value={`-${formatCurrency(Math.abs(delta))}`}
-        sub="under target"
+        label="Budget"
+        value={formatCurrency(Math.abs(delta))}
+        sub="left to spend"
         tone="good"
       />
     );
   } else {
     vsTargetChip = (
       <Chip
-        label="Vs Target"
-        value={`+${formatCurrency(delta)}`}
-        sub="over target"
+        label="Budget"
+        value={formatCurrency(delta)}
+        sub="over budget"
         tone="bad"
       />
     );
