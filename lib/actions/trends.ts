@@ -99,7 +99,7 @@ export async function getMonthlyTrend(range: Range): Promise<TrendPoint[]> {
 
   return monthRows.map((m) => {
     const spent  = spendByMonth.get(m.id) ?? 0;
-    const income = incomeByMonth.get(m.id) ?? m.income;
+    const income = incomeByMonth.get(m.id) ?? 0;
     const savedPct = income > 0 ? Math.max(0, ((income - spent) / income) * 100) : 0;
     return {
       year: m.year,

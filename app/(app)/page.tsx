@@ -2,7 +2,7 @@ import { getOrCreateMonth } from "@/lib/actions/months";
 import { seedDefaultTags } from "@/lib/actions/tags";
 import { getExpensesForMonth } from "@/lib/actions/expenses";
 import { getUpcomingBills } from "@/lib/actions/bills";
-import { getIncomeEntries } from "@/lib/actions/income";
+import { getIncomeEntries, cleanupBackfilledPastEntries } from "@/lib/actions/income";
 import { currentYearMonth, calcIncomeTotals } from "@/lib/utils";
 import { HeroCard } from "@/components/dashboard/hero-card";
 import { AllocationCard } from "@/components/dashboard/allocation-card";
@@ -17,6 +17,7 @@ export default async function HomePage({
 }) {
   const params = await searchParams;
   await seedDefaultTags();
+  await cleanupBackfilledPastEntries();
 
   const def = currentYearMonth();
   const year  = parseInt(params.year  ?? String(def.year));

@@ -4,6 +4,42 @@ import { and, eq, asc, inArray, sql } from "drizzle-orm";
 import { requireSession } from "@/lib/auth/session";
 import { revalidatePath } from "next/cache";
 
+/**
+ * Delete back-filled "expected" income entries from past months.
+ * These were created by an older version of generateMonthIncomeEntries
+ * that would materialize entries for any visited month, including past
+ * ones. Real "arrived" entries (with arrivedDate) are preserved.
+ */
+export async function cleanupBackfilledPastEntries(): Promise<{ removed: number }> {
+  const user = await requireSession();
+  const db = getDb();
+  const now = new Date();
+  const currentKey = now.getFullYear() * 12 + (now.getMonth() + 1);
+
+  const pastMonths = await db.select({ id: months.id })
+    .from(months)
+    .where(and(
+      eq(months.userId, user.id!),
+      sql`${months.year} * 12 + ${months.month} < ${currentKey}`,
+    ));
+  if (pastMonths.length === 0) return { removed: 0 };
+
+  const result = await db.delete(incomeEntries)
+    .where(and(
+      eq(incomeEntries.userId, user.id!),
+      inArray(incomeEntries.monthId, pastMonths.map((m) => m.id)),
+      eq(incomeEntries.status, "expected"),
+    ))
+    .returning({ monthId: incomeEntries.monthId });
+
+  // Resync month.income for affected months
+  const affectedMonthIds = Array.from(new Set(result.map((r) => r.monthId)));
+  for (const monthId of affectedMonthIds) {
+    await recomputeMonthIncome(user.id!, monthId);
+  }
+  return { removed: result.length };
+}
+
 /** Recompute month.income from arrived+expected income entries. */
 async function recomputeMonthIncome(userId: string, monthId: number) {
   const db = getDb();
@@ -33,6 +69,14 @@ export async function getIncomeEntries(monthId: number) {
 export async function generateMonthIncomeEntries(monthId: number, year: number, month: number) {
   const user = await requireSession();
   const db = getDb();
+
+  // Don't back-fill past months. An income source created in May 2026 should
+  // not materialize "expected" entries for Jan-Apr 2026 just because the user
+  // visited /trends or /?month=N for a prior month.
+  const now = new Date();
+  const targetKey   = year * 12 + month;
+  const currentKey  = now.getFullYear() * 12 + (now.getMonth() + 1);
+  if (targetKey < currentKey) return;
 
   const sources = await db.select().from(incomeSources)
     .where(and(eq(incomeSources.userId, user.id!), eq(incomeSources.active, true)));
