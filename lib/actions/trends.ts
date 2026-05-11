@@ -1,6 +1,6 @@
 "use server";
 import { getDb, months, expenses, tags, trips } from "@/lib/db";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { requireSession } from "@/lib/auth/session";
 
 export type Range = "6mo" | "12mo" | "ytd";
@@ -70,12 +70,13 @@ export async function getMonthlyTrend(range: Range): Promise<TrendPoint[]> {
 
   if (monthRows.length === 0) return [];
 
+  const monthIds = monthRows.map((m) => m.id);
   const spendRows = await db.select({
     monthId: expenses.monthId,
     total:   sql<number>`coalesce(sum(${expenses.amountUsd}), 0)`,
   })
     .from(expenses)
-    .where(eq(expenses.userId, user.id!))
+    .where(and(eq(expenses.userId, user.id!), inArray(expenses.monthId, monthIds)))
     .groupBy(expenses.monthId);
 
   const spendByMonth = new Map<number, number>();
