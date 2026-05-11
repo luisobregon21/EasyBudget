@@ -7,6 +7,23 @@ interface Props {
   data: TrendPoint[];
 }
 
+interface TooltipPayloadItem {
+  payload: TrendPoint;
+}
+
+function ChartTooltip({ active, payload }: { active?: boolean; payload?: TooltipPayloadItem[] }) {
+  if (!active || !payload?.length) return null;
+  const point = payload[0].payload;
+  return (
+    <div className="rounded-xl border border-accent-purple/30 bg-[#1e1235] px-3 py-2 text-xs shadow-lg">
+      <p className="text-accent-gold font-bold mb-1">{point.label}</p>
+      <p className="text-amber-400">Income: {formatCurrency(point.income)}</p>
+      <p className="text-pink-400">Spent: {formatCurrency(point.spent)}</p>
+      <p className="text-foreground mt-1">Saved: {point.savedPct}%</p>
+    </div>
+  );
+}
+
 export function MonthlyTrendChart({ data }: Props) {
   if (data.length === 0) {
     return (
@@ -28,16 +45,7 @@ export function MonthlyTrendChart({ data }: Props) {
             tickLine={false}
             tickFormatter={(v: number) => `$${Math.round(v / 1000)}k`}
           />
-          <Tooltip
-            contentStyle={{
-              background: "#1e1235",
-              border: "1px solid rgba(167,139,250,0.3)",
-              borderRadius: 12,
-              fontSize: 12,
-            }}
-            formatter={(v, name) => [formatCurrency(typeof v === "number" ? v : 0), String(name ?? "")]}
-            labelStyle={{ color: "#fbbf24", fontWeight: 700 }}
-          />
+          <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(167,139,250,0.08)" }} />
           <Bar dataKey="income" name="Income" fill="#fbbf24" radius={[6, 6, 0, 0]} />
           <Bar dataKey="spent"  name="Spent"  fill="#ec4899" radius={[6, 6, 0, 0]} />
         </BarChart>
