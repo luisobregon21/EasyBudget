@@ -1,8 +1,25 @@
 "use server";
 import { getDb, incomeEntries, incomeSources, months } from "@/lib/db";
-import { and, eq, asc } from "drizzle-orm";
+import { and, eq, asc, inArray, sql } from "drizzle-orm";
 import { requireSession } from "@/lib/auth/session";
 import { revalidatePath } from "next/cache";
+
+/** Recompute month.income from arrived+expected income entries. */
+async function recomputeMonthIncome(userId: string, monthId: number) {
+  const db = getDb();
+  const [row] = await db.select({
+    total: sql<number>`coalesce(sum(${incomeEntries.amount}), 0)`,
+  })
+    .from(incomeEntries)
+    .where(and(
+      eq(incomeEntries.userId, userId),
+      eq(incomeEntries.monthId, monthId),
+      inArray(incomeEntries.status, ["arrived", "expected"]),
+    ));
+  await db.update(months)
+    .set({ income: Number(row?.total ?? 0) })
+    .where(and(eq(months.id, monthId), eq(months.userId, userId)));
+}
 
 export async function getIncomeEntries(monthId: number) {
   const user = await requireSession();
@@ -20,6 +37,7 @@ export async function generateMonthIncomeEntries(monthId: number, year: number, 
   const sources = await db.select().from(incomeSources)
     .where(and(eq(incomeSources.userId, user.id!), eq(incomeSources.active, true)));
 
+  let inserted = false;
   for (const source of sources) {
     if (source.frequency === "one_time") continue;
 
@@ -43,6 +61,7 @@ export async function generateMonthIncomeEntries(monthId: number, year: number, 
         status: "expected",
         expectedDate: `${year}-${String(month).padStart(2, "0")}-01`,
       });
+      inserted = true;
     } else if (source.frequency === "biweekly") {
       for (const day of [1, 15]) {
         await db.insert(incomeEntries).values({
@@ -54,9 +73,11 @@ export async function generateMonthIncomeEntries(monthId: number, year: number, 
           status: "expected",
           expectedDate: `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`,
         });
+        inserted = true;
       }
     }
   }
+  if (inserted) await recomputeMonthIncome(user.id!, monthId);
 }
 
 export async function createIncomeEntry(prevState: unknown, formData: FormData): Promise<{ success: boolean; message: string }> {
@@ -116,6 +137,7 @@ export async function createIncomeEntry(prevState: unknown, formData: FormData):
       });
     }
 
+    await recomputeMonthIncome(user.id!, monthId);
     revalidatePath("/income");
     revalidatePath("/");
     return { success: true, message: "Income added" };
@@ -132,9 +154,11 @@ export async function updateIncomeEntryStatus(
     const user = await requireSession();
     const db = getDb();
     const arrivedDate = status === "arrived" ? new Date().toISOString().split("T")[0] : null;
-    await db.update(incomeEntries)
+    const [updated] = await db.update(incomeEntries)
       .set({ status, arrivedDate })
-      .where(and(eq(incomeEntries.id, entryId), eq(incomeEntries.userId, user.id!)));
+      .where(and(eq(incomeEntries.id, entryId), eq(incomeEntries.userId, user.id!)))
+      .returning({ monthId: incomeEntries.monthId });
+    if (updated) await recomputeMonthIncome(user.id!, updated.monthId);
     revalidatePath("/income");
     revalidatePath("/");
     if (status === "arrived") return { success: true, message: "Marked as arrived" };
@@ -148,8 +172,10 @@ export async function deleteIncomeEntry(entryId: number): Promise<{ success: boo
   try {
     const user = await requireSession();
     const db = getDb();
-    await db.delete(incomeEntries)
-      .where(and(eq(incomeEntries.id, entryId), eq(incomeEntries.userId, user.id!)));
+    const [deleted] = await db.delete(incomeEntries)
+      .where(and(eq(incomeEntries.id, entryId), eq(incomeEntries.userId, user.id!)))
+      .returning({ monthId: incomeEntries.monthId });
+    if (deleted) await recomputeMonthIncome(user.id!, deleted.monthId);
     revalidatePath("/income");
     revalidatePath("/");
     return { success: true, message: "Income removed" };
