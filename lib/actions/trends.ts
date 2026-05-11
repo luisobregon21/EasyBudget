@@ -1,5 +1,5 @@
 "use server";
-import { getDb, months, expenses, tags, trips } from "@/lib/db";
+import { getDb, months, expenses, tags, trips, incomeEntries } from "@/lib/db";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { requireSession } from "@/lib/auth/session";
 
@@ -71,25 +71,41 @@ export async function getMonthlyTrend(range: Range): Promise<TrendPoint[]> {
   if (monthRows.length === 0) return [];
 
   const monthIds = monthRows.map((m) => m.id);
-  const spendRows = await db.select({
-    monthId: expenses.monthId,
-    total:   sql<number>`coalesce(sum(${expenses.amountUsd}), 0)`,
-  })
-    .from(expenses)
-    .where(and(eq(expenses.userId, user.id!), inArray(expenses.monthId, monthIds)))
-    .groupBy(expenses.monthId);
+  const [spendRows, incomeRows] = await Promise.all([
+    db.select({
+      monthId: expenses.monthId,
+      total:   sql<number>`coalesce(sum(${expenses.amountUsd}), 0)`,
+    })
+      .from(expenses)
+      .where(and(eq(expenses.userId, user.id!), inArray(expenses.monthId, monthIds)))
+      .groupBy(expenses.monthId),
+    db.select({
+      monthId: incomeEntries.monthId,
+      total:   sql<number>`coalesce(sum(${incomeEntries.amount}), 0)`,
+    })
+      .from(incomeEntries)
+      .where(and(
+        eq(incomeEntries.userId, user.id!),
+        inArray(incomeEntries.monthId, monthIds),
+        inArray(incomeEntries.status, ["arrived", "expected"]),
+      ))
+      .groupBy(incomeEntries.monthId),
+  ]);
 
   const spendByMonth = new Map<number, number>();
   for (const row of spendRows) spendByMonth.set(row.monthId, Number(row.total));
+  const incomeByMonth = new Map<number, number>();
+  for (const row of incomeRows) incomeByMonth.set(row.monthId, Number(row.total));
 
   return monthRows.map((m) => {
-    const spent = spendByMonth.get(m.id) ?? 0;
-    const savedPct = m.income > 0 ? Math.max(0, ((m.income - spent) / m.income) * 100) : 0;
+    const spent  = spendByMonth.get(m.id) ?? 0;
+    const income = incomeByMonth.get(m.id) ?? m.income;
+    const savedPct = income > 0 ? Math.max(0, ((income - spent) / income) * 100) : 0;
     return {
       year: m.year,
       month: m.month,
       label: MONTH_LABELS[m.month - 1],
-      income: m.income,
+      income,
       spent,
       savedPct: Math.round(savedPct),
     };
@@ -124,12 +140,11 @@ export async function getExpensesByTag(monthId: number): Promise<TagBreakdownRow
     .sort((a, b) => b.total - a.total);
 }
 
-export async function getExpensesByBucket(monthId: number): Promise<BucketBreakdownRow[]> {
+export async function getExpensesByBucket(monthId: number, income: number): Promise<BucketBreakdownRow[]> {
   const user = await requireSession();
   const db = getDb();
 
   const [monthRow] = await db.select({
-    income:     months.income,
     savingsPct: months.savingsPct,
     billsPct:   months.billsPct,
     wantsPct:   months.wantsPct,
@@ -158,7 +173,7 @@ export async function getExpensesByBucket(monthId: number): Promise<BucketBreakd
   ];
 
   return buckets.map(({ bucket, pct }) => {
-    const allocated = monthRow.income * (pct / 100);
+    const allocated = income * (pct / 100);
     const spent     = spentByBucket.get(bucket) ?? 0;
     const usedPct   = allocated > 0 ? Math.round((spent / allocated) * 100) : 0;
     return { bucket, spent, allocated, pct: usedPct };

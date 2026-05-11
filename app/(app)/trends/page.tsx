@@ -1,10 +1,11 @@
 import { getOrCreateMonth, getMonth } from "@/lib/actions/months";
 import { getExpensesForMonth, getExpensesByPaymentMethod } from "@/lib/actions/expenses";
+import { getIncomeEntries } from "@/lib/actions/income";
 import {
   getMonthlyTrend, getExpensesByTag, getExpensesByBucket, getTripSpend,
   type Range,
 } from "@/lib/actions/trends";
-import { currentYearMonth } from "@/lib/utils";
+import { currentYearMonth, calcIncomeTotals } from "@/lib/utils";
 import { MonthSwitcher } from "@/components/layout/month-switcher";
 import { HeroKpis } from "@/components/trends/hero-kpis";
 import { RangeToggle } from "@/components/trends/range-toggle";
@@ -36,11 +37,15 @@ export default async function TrendsPage({
   const last = prevMonth(year, month);
   const lastMonthData = await getMonth(last.year, last.month);
 
+  const incomeEntries = await getIncomeEntries(monthData.id);
+  const { budgetTotal } = calcIncomeTotals(incomeEntries);
+  const income = budgetTotal > 0 ? budgetTotal : monthData.income;
+
   const [expenseList, byMethod, byTag, byBucket, byTrip, trend, lastMonthExpenses] = await Promise.all([
     getExpensesForMonth(monthData.id),
     getExpensesByPaymentMethod(monthData.id),
     getExpensesByTag(monthData.id),
-    getExpensesByBucket(monthData.id),
+    getExpensesByBucket(monthData.id, income),
     getTripSpend(monthData.id),
     getMonthlyTrend(range),
     lastMonthData ? getExpensesForMonth(lastMonthData.id) : Promise.resolve([]),
@@ -63,7 +68,7 @@ export default async function TrendsPage({
       <HeroKpis
         thisMonthSpent={totalSpent}
         lastMonthSpent={lastMonthSpent}
-        income={monthData.income}
+        income={income}
         targetSpendPct={targetSpendPct}
       />
 
