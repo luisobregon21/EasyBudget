@@ -22,16 +22,31 @@ export async function getUserTags() {
   const user = await requireSession();
   const userId = user.id!;
   const db = getDb();
-  return db.select().from(tags).where(eq(tags.userId, userId));
+  const rows = await db.select().from(tags).where(eq(tags.userId, userId));
+
+  // Dedupe by (name, emoji). Historical race conditions in seedDefaultTags
+  // could insert the default set multiple times; keep the lowest-id row for
+  // each pair so existing expenses keep their tag references.
+  const seen = new Set<string>();
+  const keep: typeof rows = [];
+  for (const t of [...rows].sort((a, b) => a.id - b.id)) {
+    const key = `${t.name}|${t.emoji}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    keep.push(t);
+  }
+  return keep;
 }
 
 export async function seedDefaultTags() {
   const user = await requireSession();
   const userId = user.id!;
   const db = getDb();
-  const existing = await db.select().from(tags).where(eq(tags.userId, userId));
-  if (existing.length > 0) return;
-  await db.insert(tags).values(DEFAULT_TAGS.map((t) => ({ ...t, userId })));
+  const existing = await db.select({ name: tags.name }).from(tags).where(eq(tags.userId, userId));
+  const existingNames = new Set(existing.map((t) => t.name));
+  const toInsert = DEFAULT_TAGS.filter((t) => !existingNames.has(t.name));
+  if (toInsert.length === 0) return;
+  await db.insert(tags).values(toInsert.map((t) => ({ ...t, userId })));
 }
 
 export async function createTag(data: { name: string; emoji: string; color: string; defaultBucket: "savings" | "bills" | "wants" }) {
