@@ -1,4 +1,4 @@
-import { getOrCreateMonth } from "@/lib/actions/months";
+import { getOrCreateMonth, getMonth } from "@/lib/actions/months";
 import { getExpensesForMonth, getExpensesByPaymentMethod } from "@/lib/actions/expenses";
 import {
   getMonthlyTrend, getExpensesByTag, getExpensesByBucket, getTripSpend,
@@ -34,7 +34,7 @@ export default async function TrendsPage({
 
   const monthData = await getOrCreateMonth(year, month);
   const last = prevMonth(year, month);
-  const lastMonthData = await getOrCreateMonth(last.year, last.month);
+  const lastMonthData = await getMonth(last.year, last.month);
 
   const [expenseList, byMethod, byTag, byBucket, byTrip, trend, lastMonthExpenses] = await Promise.all([
     getExpensesForMonth(monthData.id),
@@ -43,7 +43,7 @@ export default async function TrendsPage({
     getExpensesByBucket(monthData.id),
     getTripSpend(monthData.id),
     getMonthlyTrend(range),
-    getExpensesForMonth(lastMonthData.id),
+    lastMonthData ? getExpensesForMonth(lastMonthData.id) : Promise.resolve([]),
   ]);
 
   const totalSpent     = expenseList.reduce((s, e) => s + e.amountUsd, 0);

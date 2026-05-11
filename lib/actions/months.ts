@@ -4,6 +4,15 @@ import { and, eq } from "drizzle-orm";
 import { requireSession } from "@/lib/auth/session";
 import { generateMonthIncomeEntries } from "@/lib/actions/income";
 
+export async function getMonth(year: number, month: number) {
+  const user = await requireSession();
+  const db = getDb();
+  const [row] = await db.select().from(months)
+    .where(and(eq(months.userId, user.id!), eq(months.year, year), eq(months.month, month)))
+    .limit(1);
+  return row ?? null;
+}
+
 export async function getOrCreateMonth(year: number, month: number) {
   const user = await requireSession();
   const userId = user.id!;
