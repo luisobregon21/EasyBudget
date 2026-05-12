@@ -5,6 +5,8 @@ import { requireSession } from "@/lib/auth/session";
 
 export type Range = "6mo" | "12mo" | "ytd";
 
+export type CategoryView = "monthly" | "daily";
+
 export type TrendPoint = {
   year: number;
   month: number;
@@ -44,6 +46,7 @@ export type CategoryTrendRow = {
   lastMonthTotal: number;
   deltaPct: number;
   sparkline: number[];
+  isNew?: boolean;
 };
 
 export type DailySpendPoint = { day: number; total: number };
@@ -221,19 +224,31 @@ export async function getCategoryTrend(
   range: Range,
   selectedYear: number,
   selectedMonth: number,
+  view: CategoryView = "monthly",
 ): Promise<CategoryTrendRow[]> {
   const user = await requireSession();
   const db = getDb();
+
+  if (view === "daily") {
+    return getCategoryTrendDaily(user.id!, selectedYear, selectedMonth);
+  }
+  return getCategoryTrendMonthly(user.id!, db, range, selectedYear, selectedMonth);
+}
+
+async function getCategoryTrendMonthly(
+  userId: string,
+  db: ReturnType<typeof getDb>,
+  range: Range,
+  selectedYear: number,
+  selectedMonth: number,
+): Promise<CategoryTrendRow[]> {
   const { year: startYear, month: startMonth } = rangeStart(range, new Date(selectedYear, selectedMonth - 1, 1));
   const selectedKey = selectedYear * 12 + selectedMonth;
 
-  // Pull months in range, but ALSO ensure the selected month + the month before it
-  // are present in monthRows so currentTotal / lastMonthTotal are anchored to the
-  // user's selected month (not whatever happens to be the most recent row in the DB).
   const monthRows = await db.select({ id: months.id, year: months.year, month: months.month })
     .from(months)
     .where(and(
-      eq(months.userId, user.id!),
+      eq(months.userId, userId),
       sql`${months.year} * 12 + ${months.month} >= ${startYear * 12 + startMonth}`,
       sql`${months.year} * 12 + ${months.month} <= ${selectedKey}`,
     ))
@@ -250,7 +265,7 @@ export async function getCategoryTrend(
   })
     .from(expenses)
     .leftJoin(tags, eq(expenses.tagId, tags.id))
-    .where(and(eq(expenses.userId, user.id!), inArray(expenses.monthId, monthIds)))
+    .where(and(eq(expenses.userId, userId), inArray(expenses.monthId, monthIds)))
     .groupBy(expenses.tagId, expenses.monthId, tags.name, tags.emoji);
 
   type Bucket = { tagId: number | null; name: string; emoji: string; byMonth: Map<number, number> };
@@ -265,7 +280,6 @@ export async function getCategoryTrend(
     b.byMonth.set(r.monthId, Number(r.total));
   }
 
-  // Anchor "current" and "last" to the user's selected month, not the chronological tail.
   const currentMonthRow = monthRows.find((m) => m.year === selectedYear && m.month === selectedMonth);
   const currentMonthId  = currentMonthRow?.id ?? null;
   const currentIdx      = currentMonthRow ? monthRows.indexOf(currentMonthRow) : -1;
@@ -279,9 +293,92 @@ export async function getCategoryTrend(
     let deltaPct = 0;
     if (lastMonthTotal === 0 && currentTotal > 0) deltaPct = 100;
     else if (lastMonthTotal > 0) deltaPct = Math.round(((currentTotal - lastMonthTotal) / lastMonthTotal) * 100);
-    // Hide categories with no spend in any month in the range
     if (sparkline.every((v) => v === 0) && currentTotal === 0) continue;
     result.push({ tagId: b.tagId, name: b.name, emoji: b.emoji, currentTotal, lastMonthTotal, deltaPct, sparkline });
+  }
+  return result.sort((a, b) => b.currentTotal - a.currentTotal);
+}
+
+async function getCategoryTrendDaily(
+  userId: string,
+  selectedYear: number,
+  selectedMonth: number,
+): Promise<CategoryTrendRow[]> {
+  const db = getDb();
+
+  const [monthRow] = await db.select({ id: months.id })
+    .from(months)
+    .where(and(
+      eq(months.userId, userId),
+      eq(months.year, selectedYear),
+      eq(months.month, selectedMonth),
+    ))
+    .limit(1);
+  if (!monthRow) return [];
+
+  const rows = await db.select({
+    tagId:    expenses.tagId,
+    date:     expenses.date,
+    tagName:  tags.name,
+    tagEmoji: tags.emoji,
+    total:    sql<number>`sum(${expenses.amountUsd})`,
+  })
+    .from(expenses)
+    .leftJoin(tags, eq(expenses.tagId, tags.id))
+    .where(and(eq(expenses.monthId, monthRow.id), eq(expenses.userId, userId)))
+    .groupBy(expenses.tagId, expenses.date, tags.name, tags.emoji);
+
+  const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
+  const now = new Date();
+  const isCurrentMonth = now.getFullYear() === selectedYear && (now.getMonth() + 1) === selectedMonth;
+  const todayIdx = isCurrentMonth ? now.getDate() - 1 : daysInMonth - 1;
+  const yesterdayIdx = todayIdx > 0 ? todayIdx - 1 : null;
+
+  type Bucket = { tagId: number | null; name: string; emoji: string; byDay: number[] };
+  const buckets = new Map<string, Bucket>();
+  for (const r of rows) {
+    const key = `${r.tagId ?? "null"}|${r.tagName ?? "Untagged"}`;
+    let b = buckets.get(key);
+    if (!b) {
+      b = {
+        tagId: r.tagId,
+        name:  r.tagName ?? "Untagged",
+        emoji: r.tagEmoji ?? "🏷️",
+        byDay: new Array(daysInMonth).fill(0),
+      };
+      buckets.set(key, b);
+    }
+    const day = parseInt(r.date.split("-")[2]);
+    if (day >= 1 && day <= daysInMonth) {
+      b.byDay[day - 1] = Number(r.total);
+    }
+  }
+
+  const result: CategoryTrendRow[] = [];
+  for (const b of buckets.values()) {
+    const monthTotal = b.byDay.reduce((s, v) => s + v, 0);
+    if (monthTotal === 0) continue;
+    const today     = b.byDay[todayIdx] ?? 0;
+    const yesterday = yesterdayIdx !== null ? (b.byDay[yesterdayIdx] ?? 0) : 0;
+    let deltaPct = 0;
+    let isNew = false;
+    if (yesterday === 0 && today > 0) {
+      isNew = true;
+    } else if (today === 0 && yesterday > 0) {
+      deltaPct = -100;
+    } else if (yesterday > 0) {
+      deltaPct = Math.round(((today - yesterday) / yesterday) * 100);
+    }
+    result.push({
+      tagId: b.tagId,
+      name: b.name,
+      emoji: b.emoji,
+      currentTotal: today,
+      lastMonthTotal: yesterday,
+      deltaPct,
+      sparkline: b.byDay,
+      isNew,
+    });
   }
   return result.sort((a, b) => b.currentTotal - a.currentTotal);
 }
