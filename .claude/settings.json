@@ -25,7 +25,15 @@
       "Bash(memory_pressure)",
       "Bash(top -l 1 -n 0)",
       "Bash(2>&1)",
-      "Bash(git reset *)"
+      "Bash(git reset *)",
+      "Bash(git checkout *)",
+      "Bash(awk -F': ' '/free percentage/ {gsub\\(\"%\", \"\", $2\\); print 100 - $2}')",
+      "Bash(python3 -c \"import json,sys; p=json.load\\(sys.stdin\\); print\\('version:', p.get\\('version'\\)\\); print\\('exports keys:', list\\(p.get\\('exports', {}\\).keys\\(\\)\\)[:10]\\)\")",
+      "Bash(node -e ' *)",
+      "Bash(git -C /Users/luisobregon/projects/personal_projects/EasyBudget add components/trends/bucket-pulse-bars.tsx)",
+      "Bash(git -C /Users/luisobregon/projects/personal_projects/EasyBudget commit -m ' *)",
+      "Bash(git -C /Users/luisobregon/projects/personal_projects/EasyBudget add components/trends/headline-card.tsx components/trends/spend-ticker-card.tsx components/trends/category-ticker-table.tsx components/trends/biggest-changes-card.tsx components/trends/daily-heatmap.tsx components/trends/trips-list.tsx)",
+      "Bash(git rm *)"
     ]
   }
 }

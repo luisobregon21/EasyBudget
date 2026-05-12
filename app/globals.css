@@ -94,3 +94,26 @@
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
+
+/* Bucket bar "breathing" pulse — bright glow on the filled portion */
+@keyframes pulseFill {
+  0%, 100% {
+    opacity: 0.85;
+    box-shadow: 0 0 4px 0 rgba(236, 72, 153, 0.4);
+  }
+  50% {
+    opacity: 1;
+    box-shadow: 0 0 16px 3px rgba(236, 72, 153, 0.85);
+  }
+}
+
+.pulse-fill {
+  animation: pulseFill 1.6s ease-in-out infinite;
+  will-change: opacity, box-shadow;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulse-fill {
+    animation: none;
+  }
+}
