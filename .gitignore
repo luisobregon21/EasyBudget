@@ -45,3 +45,7 @@ next-env.d.ts
 
 # Superpowers
 .superpowers/
+
+# Source logo files (use public/icons/* and app/favicon.ico for runtime)
+/eb-logo.png
+/eb-logo.ico
