@@ -217,17 +217,25 @@ export async function getTripSpend(monthId: number): Promise<TripBreakdownRow[]>
     .sort((a, b) => b.spent - a.spent);
 }
 
-export async function getCategoryTrend(range: Range): Promise<CategoryTrendRow[]> {
+export async function getCategoryTrend(
+  range: Range,
+  selectedYear: number,
+  selectedMonth: number,
+): Promise<CategoryTrendRow[]> {
   const user = await requireSession();
   const db = getDb();
-  const now = new Date();
-  const { year: startYear, month: startMonth } = rangeStart(range, now);
+  const { year: startYear, month: startMonth } = rangeStart(range, new Date(selectedYear, selectedMonth - 1, 1));
+  const selectedKey = selectedYear * 12 + selectedMonth;
 
+  // Pull months in range, but ALSO ensure the selected month + the month before it
+  // are present in monthRows so currentTotal / lastMonthTotal are anchored to the
+  // user's selected month (not whatever happens to be the most recent row in the DB).
   const monthRows = await db.select({ id: months.id, year: months.year, month: months.month })
     .from(months)
     .where(and(
       eq(months.userId, user.id!),
       sql`${months.year} * 12 + ${months.month} >= ${startYear * 12 + startMonth}`,
+      sql`${months.year} * 12 + ${months.month} <= ${selectedKey}`,
     ))
     .orderBy(months.year, months.month);
   if (monthRows.length === 0) return [];
@@ -257,17 +265,22 @@ export async function getCategoryTrend(range: Range): Promise<CategoryTrendRow[]
     b.byMonth.set(r.monthId, Number(r.total));
   }
 
-  const currentMonthId = monthRows[monthRows.length - 1].id;
-  const lastMonthId    = monthRows.length >= 2 ? monthRows[monthRows.length - 2].id : null;
+  // Anchor "current" and "last" to the user's selected month, not the chronological tail.
+  const currentMonthRow = monthRows.find((m) => m.year === selectedYear && m.month === selectedMonth);
+  const currentMonthId  = currentMonthRow?.id ?? null;
+  const currentIdx      = currentMonthRow ? monthRows.indexOf(currentMonthRow) : -1;
+  const lastMonthId     = currentIdx > 0 ? monthRows[currentIdx - 1].id : null;
 
   const result: CategoryTrendRow[] = [];
   for (const b of buckets.values()) {
     const sparkline = monthRows.map((m) => b.byMonth.get(m.id) ?? 0);
-    const currentTotal   = b.byMonth.get(currentMonthId) ?? 0;
-    const lastMonthTotal = lastMonthId !== null ? (b.byMonth.get(lastMonthId) ?? 0) : 0;
+    const currentTotal   = currentMonthId !== null ? (b.byMonth.get(currentMonthId) ?? 0) : 0;
+    const lastMonthTotal = lastMonthId    !== null ? (b.byMonth.get(lastMonthId)    ?? 0) : 0;
     let deltaPct = 0;
     if (lastMonthTotal === 0 && currentTotal > 0) deltaPct = 100;
     else if (lastMonthTotal > 0) deltaPct = Math.round(((currentTotal - lastMonthTotal) / lastMonthTotal) * 100);
+    // Hide categories with no spend in any month in the range
+    if (sparkline.every((v) => v === 0) && currentTotal === 0) continue;
     result.push({ tagId: b.tagId, name: b.name, emoji: b.emoji, currentTotal, lastMonthTotal, deltaPct, sparkline });
   }
   return result.sort((a, b) => b.currentTotal - a.currentTotal);

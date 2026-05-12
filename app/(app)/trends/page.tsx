@@ -53,7 +53,7 @@ export default async function TrendsPage({
     getExpensesByBucket(monthData.id, income),
     getTripSpend(monthData.id),
     getMonthlyTrend(range),
-    getCategoryTrend(range),
+    getCategoryTrend(range, year, month),
     getDailySpend(monthData.id, year, month),
     lastMonthData ? getExpensesForMonth(lastMonthData.id) : Promise.resolve([]),
   ]);
