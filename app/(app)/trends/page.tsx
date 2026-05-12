@@ -1,21 +1,28 @@
 import { getOrCreateMonth, getMonth } from "@/lib/actions/months";
-import { getExpensesForMonth, getExpensesByPaymentMethod } from "@/lib/actions/expenses";
+import { getExpensesForMonth } from "@/lib/actions/expenses";
 import { getIncomeEntries } from "@/lib/actions/income";
 import {
-  getMonthlyTrend, getExpensesByTag, getExpensesByBucket, getTripSpend,
+  getMonthlyTrend, getExpensesByBucket, getTripSpend,
+  getCategoryTrend, getDailySpend, getHeadlineInsight,
   type Range,
 } from "@/lib/actions/trends";
 import { currentYearMonth, calcIncomeTotals } from "@/lib/utils";
 import { MonthSwitcher } from "@/components/layout/month-switcher";
 import { HeroKpis } from "@/components/trends/hero-kpis";
+import { Tabs } from "@/components/trends/tabs";
 import { RangeToggle } from "@/components/trends/range-toggle";
-import { MonthlyTrendChart } from "@/components/trends/monthly-trend-chart";
-import { BucketBreakdown } from "@/components/trends/bucket-breakdown";
-import { TagBreakdown } from "@/components/trends/tag-breakdown";
-import { TripBreakdown } from "@/components/trends/trip-breakdown";
-import { PaymentMethodBreakdown } from "@/components/trends/payment-method-breakdown";
+import { MonthlyAreaChart } from "@/components/trends/monthly-area-chart";
+import { HeadlineCard } from "@/components/trends/headline-card";
+import { SpendTickerCard } from "@/components/trends/spend-ticker-card";
+import { CategoryTickerTable } from "@/components/trends/category-ticker-table";
+import { BiggestChangesCard } from "@/components/trends/biggest-changes-card";
+import { BucketPulseBars } from "@/components/trends/bucket-pulse-bars";
+import { DailyHeatmap } from "@/components/trends/daily-heatmap";
+import { TripsList } from "@/components/trends/trips-list";
 
 const VALID_RANGES: Range[] = ["6mo", "12mo", "ytd"];
+const MONTH_LABELS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const MONTH_LABELS_SHORT = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
 
 function prevMonth(year: number, month: number): { year: number; month: number } {
   if (month === 1) return { year: year - 1, month: 12 };
@@ -41,22 +48,29 @@ export default async function TrendsPage({
   const { budgetTotal } = calcIncomeTotals(incomeEntries);
   const income = budgetTotal > 0 ? budgetTotal : monthData.income;
 
-  const [expenseList, byMethod, byTag, byBucket, byTrip, trend, lastMonthExpenses] = await Promise.all([
+  const [expenseList, byBucket, byTrip, trend, categoryTrend, dailySpend, lastMonthExpenses] = await Promise.all([
     getExpensesForMonth(monthData.id),
-    getExpensesByPaymentMethod(monthData.id),
-    getExpensesByTag(monthData.id),
     getExpensesByBucket(monthData.id, income),
     getTripSpend(monthData.id),
     getMonthlyTrend(range),
+    getCategoryTrend(range),
+    getDailySpend(monthData.id, year, month),
     lastMonthData ? getExpensesForMonth(lastMonthData.id) : Promise.resolve([]),
   ]);
 
   const totalSpent     = expenseList.reduce((s, e) => s + e.amountUsd, 0);
   const lastMonthSpent = lastMonthExpenses.reduce((s, e) => s + e.amountUsd, 0);
+  const savings        = Math.max(0, income - totalSpent);
   const targetSpendPct = monthData.billsPct + monthData.wantsPct;
 
+  const headline = await getHeadlineInsight(
+    monthData.id, income, byBucket, totalSpent, lastMonthSpent,
+    MONTH_LABELS[month - 1], MONTH_LABELS[last.month - 1],
+  );
+  const sparkline = trend.map((t) => t.spent);
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 max-w-3xl mx-auto">
       <div className="flex justify-between items-start">
         <div>
           <h2 className="text-foreground text-xl font-bold">Trends</h2>
@@ -65,44 +79,60 @@ export default async function TrendsPage({
         <MonthSwitcher year={year} month={month} />
       </div>
 
-      <HeroKpis
-        thisMonthSpent={totalSpent}
-        lastMonthSpent={lastMonthSpent}
-        income={income}
-        targetSpendPct={targetSpendPct}
+      <HeroKpis spent={totalSpent} income={income} savings={savings} targetSpendPct={targetSpendPct} />
+
+      <Tabs
+        overview={
+          <div className="space-y-5">
+            <HeadlineCard text={headline} />
+            <SpendTickerCard
+              monthLabel={MONTH_LABELS_SHORT[month - 1]}
+              lastMonthLabel={MONTH_LABELS[last.month - 1]}
+              spent={totalSpent}
+              lastMonthSpent={lastMonthSpent}
+              sparkline={sparkline}
+            />
+            <section className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-foreground font-semibold text-sm">Income vs Spend over time</h3>
+                <RangeToggle current={range} />
+              </div>
+              <div className="rounded-2xl bg-white/[0.03] border border-accent-purple/10 p-4">
+                <MonthlyAreaChart data={trend} />
+              </div>
+            </section>
+            <section className="space-y-3">
+              <h3 className="text-foreground font-semibold text-sm">Daily spending — {MONTH_LABELS[month - 1]}</h3>
+              <DailyHeatmap points={dailySpend} year={year} month={month} />
+            </section>
+            <section className="space-y-2">
+              <h3 className="text-foreground font-semibold text-sm">Top categories</h3>
+              <CategoryTickerTable rows={categoryTrend} limit={5} />
+            </section>
+          </div>
+        }
+        categories={
+          <div className="space-y-5">
+            <BiggestChangesCard rows={categoryTrend} />
+            <section className="space-y-2">
+              <h3 className="text-foreground font-semibold text-sm">By Bucket</h3>
+              <BucketPulseBars buckets={byBucket} />
+            </section>
+            <section className="space-y-2">
+              <h3 className="text-foreground font-semibold text-sm">All categories</h3>
+              <CategoryTickerTable rows={categoryTrend} />
+            </section>
+          </div>
+        }
+        trips={
+          <div className="space-y-5">
+            <section className="space-y-2">
+              <h3 className="text-foreground font-semibold text-sm">Active trips this month</h3>
+              <TripsList trips={byTrip} />
+            </section>
+          </div>
+        }
       />
-
-      <section className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-foreground font-semibold">Income vs Spend</h3>
-          <RangeToggle current={range} />
-        </div>
-        <div className="rounded-2xl bg-white/[0.03] border border-accent-purple/10 p-3">
-          <MonthlyTrendChart data={trend} />
-        </div>
-      </section>
-
-      <div className="grid md:grid-cols-2 gap-6">
-        <section className="space-y-3">
-          <h3 className="text-foreground font-semibold">By Bucket</h3>
-          <BucketBreakdown buckets={byBucket} />
-        </section>
-
-        <section className="space-y-3">
-          <h3 className="text-foreground font-semibold">By Tag</h3>
-          <TagBreakdown tags={byTag} />
-        </section>
-
-        <section className="space-y-3">
-          <h3 className="text-foreground font-semibold">By Payment Method</h3>
-          <PaymentMethodBreakdown rows={byMethod} totalSpent={totalSpent} />
-        </section>
-
-        <section className="space-y-3">
-          <h3 className="text-foreground font-semibold">By Trip</h3>
-          <TripBreakdown trips={byTrip} />
-        </section>
-      </div>
     </div>
   );
 }
