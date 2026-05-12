@@ -116,7 +116,10 @@ export default async function TrendsPage({
               <DailyHeatmap points={dailySpend} year={year} month={month} />
             </section>
             <section className="space-y-2">
-              <h3 className="text-foreground font-semibold text-sm">Top categories</h3>
+              <div className="flex items-center justify-between">
+                <h3 className="text-foreground font-semibold text-sm">Top categories</h3>
+                {!isFutureMonth && <CategoryViewToggle current={effectiveView} />}
+              </div>
               <CategoryTickerTable rows={categoryTrend} limit={5} />
             </section>
           </div>
