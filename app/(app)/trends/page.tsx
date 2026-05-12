@@ -4,7 +4,7 @@ import { getIncomeEntries } from "@/lib/actions/income";
 import {
   getMonthlyTrend, getExpensesByBucket, getTripSpend,
   getCategoryTrend, getDailySpend, getHeadlineInsight,
-  type Range,
+  type Range, type CategoryView,
 } from "@/lib/actions/trends";
 import { currentYearMonth, calcIncomeTotals } from "@/lib/utils";
 import { MonthSwitcher } from "@/components/layout/month-switcher";
@@ -15,6 +15,7 @@ import { MonthlyAreaChart } from "@/components/trends/monthly-area-chart";
 import { HeadlineCard } from "@/components/trends/headline-card";
 import { SpendTickerCard } from "@/components/trends/spend-ticker-card";
 import { CategoryTickerTable } from "@/components/trends/category-ticker-table";
+import { CategoryViewToggle } from "@/components/trends/category-view-toggle";
 import { BiggestChangesCard } from "@/components/trends/biggest-changes-card";
 import { BucketPulseBars } from "@/components/trends/bucket-pulse-bars";
 import { DailyHeatmap } from "@/components/trends/daily-heatmap";
@@ -32,13 +33,22 @@ function prevMonth(year: number, month: number): { year: number; month: number }
 export default async function TrendsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ year?: string; month?: string; range?: string }>;
+  searchParams: Promise<{ year?: string; month?: string; range?: string; categoryView?: string }>;
 }) {
   const params = await searchParams;
   const def    = currentYearMonth();
   const year   = parseInt(params.year  ?? String(def.year));
   const month  = parseInt(params.month ?? String(def.month));
   const range: Range = (VALID_RANGES.includes(params.range as Range) ? params.range : "6mo") as Range;
+
+  const categoryView: CategoryView =
+    params.categoryView === "daily" ? "daily" : "monthly";
+
+  const now = new Date();
+  const selectedKey = year * 12 + month;
+  const currentKey  = now.getFullYear() * 12 + (now.getMonth() + 1);
+  const isFutureMonth = selectedKey > currentKey;
+  const effectiveView: CategoryView = isFutureMonth ? "monthly" : categoryView;
 
   const monthData = await getOrCreateMonth(year, month);
   const last = prevMonth(year, month);
@@ -53,7 +63,7 @@ export default async function TrendsPage({
     getExpensesByBucket(monthData.id, income),
     getTripSpend(monthData.id),
     getMonthlyTrend(range),
-    getCategoryTrend(range, year, month),
+    getCategoryTrend(range, year, month, effectiveView),
     getDailySpend(monthData.id, year, month),
     lastMonthData ? getExpensesForMonth(lastMonthData.id) : Promise.resolve([]),
   ]);
@@ -119,7 +129,10 @@ export default async function TrendsPage({
               <BucketPulseBars buckets={byBucket} />
             </section>
             <section className="space-y-2">
-              <h3 className="text-foreground font-semibold text-sm">All categories</h3>
+              <div className="flex items-center justify-between">
+                <h3 className="text-foreground font-semibold text-sm">All categories</h3>
+                {!isFutureMonth && <CategoryViewToggle current={effectiveView} />}
+              </div>
               <CategoryTickerTable rows={categoryTrend} />
             </section>
           </div>
