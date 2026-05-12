@@ -34,13 +34,19 @@ export function CategoryTickerTable({ rows, limit }: Props) {
                 <p className="w-20 text-right text-foreground text-sm font-mono tabular-nums font-bold">
                   {formatCurrency(t.currentTotal)}
                 </p>
-                <p className={`w-16 text-right text-xs font-mono font-bold ${
-                  flat ? "text-muted-base" : up ? "text-red-400" : "text-green-400"
-                }`}>
-                  {flat ? "—" : `${up ? "▲" : "▼"} ${Math.abs(t.deltaPct)}%`}
-                </p>
+                {t.isNew ? (
+                  <p className="w-16 text-right text-xs font-mono font-bold text-red-400">▲ NEW</p>
+                ) : flat && t.currentTotal === 0 && t.lastMonthTotal === 0 ? (
+                  <p className="w-16 text-right text-xs font-mono font-bold text-muted-base">—</p>
+                ) : (
+                  <p className={`w-16 text-right text-xs font-mono font-bold ${
+                    flat ? "text-muted-base" : up ? "text-red-400" : "text-green-400"
+                  }`}>
+                    {flat ? "—" : `${up ? "▲" : "▼"} ${Math.abs(t.deltaPct)}%`}
+                  </p>
+                )}
                 <div className="w-24 flex justify-end">
-                  <Sparkline values={t.sparkline} up={up} width={84} height={24} />
+                  <Sparkline values={t.sparkline} up={t.isNew ? true : up} width={84} height={24} />
                 </div>
               </div>
             </div>
