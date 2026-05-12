@@ -36,6 +36,18 @@ export type TripBreakdownRow = {
   spent: number;
 };
 
+export type CategoryTrendRow = {
+  tagId: number | null;
+  name: string;
+  emoji: string;
+  currentTotal: number;
+  lastMonthTotal: number;
+  deltaPct: number;
+  sparkline: number[];
+};
+
+export type DailySpendPoint = { day: number; total: number };
+
 const MONTH_LABELS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
 function rangeStart(range: Range, now: Date): { year: number; month: number } {
@@ -203,4 +215,116 @@ export async function getTripSpend(monthId: number): Promise<TripBreakdownRow[]>
       spent:     Number(r.total),
     }))
     .sort((a, b) => b.spent - a.spent);
+}
+
+export async function getCategoryTrend(range: Range): Promise<CategoryTrendRow[]> {
+  const user = await requireSession();
+  const db = getDb();
+  const now = new Date();
+  const { year: startYear, month: startMonth } = rangeStart(range, now);
+
+  const monthRows = await db.select({ id: months.id, year: months.year, month: months.month })
+    .from(months)
+    .where(and(
+      eq(months.userId, user.id!),
+      sql`${months.year} * 12 + ${months.month} >= ${startYear * 12 + startMonth}`,
+    ))
+    .orderBy(months.year, months.month);
+  if (monthRows.length === 0) return [];
+  const monthIds = monthRows.map((m) => m.id);
+
+  const rows = await db.select({
+    tagId:    expenses.tagId,
+    monthId:  expenses.monthId,
+    tagName:  tags.name,
+    tagEmoji: tags.emoji,
+    total:    sql<number>`sum(${expenses.amountUsd})`,
+  })
+    .from(expenses)
+    .leftJoin(tags, eq(expenses.tagId, tags.id))
+    .where(and(eq(expenses.userId, user.id!), inArray(expenses.monthId, monthIds)))
+    .groupBy(expenses.tagId, expenses.monthId, tags.name, tags.emoji);
+
+  type Bucket = { tagId: number | null; name: string; emoji: string; byMonth: Map<number, number> };
+  const buckets = new Map<string, Bucket>();
+  for (const r of rows) {
+    const key = `${r.tagId ?? "null"}|${r.tagName ?? "Untagged"}`;
+    let b = buckets.get(key);
+    if (!b) {
+      b = { tagId: r.tagId, name: r.tagName ?? "Untagged", emoji: r.tagEmoji ?? "🏷️", byMonth: new Map() };
+      buckets.set(key, b);
+    }
+    b.byMonth.set(r.monthId, Number(r.total));
+  }
+
+  const currentMonthId = monthRows[monthRows.length - 1].id;
+  const lastMonthId    = monthRows.length >= 2 ? monthRows[monthRows.length - 2].id : null;
+
+  const result: CategoryTrendRow[] = [];
+  for (const b of buckets.values()) {
+    const sparkline = monthRows.map((m) => b.byMonth.get(m.id) ?? 0);
+    const currentTotal   = b.byMonth.get(currentMonthId) ?? 0;
+    const lastMonthTotal = lastMonthId !== null ? (b.byMonth.get(lastMonthId) ?? 0) : 0;
+    let deltaPct = 0;
+    if (lastMonthTotal === 0 && currentTotal > 0) deltaPct = 100;
+    else if (lastMonthTotal > 0) deltaPct = Math.round(((currentTotal - lastMonthTotal) / lastMonthTotal) * 100);
+    result.push({ tagId: b.tagId, name: b.name, emoji: b.emoji, currentTotal, lastMonthTotal, deltaPct, sparkline });
+  }
+  return result.sort((a, b) => b.currentTotal - a.currentTotal);
+}
+
+export async function getDailySpend(monthId: number, year: number, month: number): Promise<DailySpendPoint[]> {
+  const user = await requireSession();
+  const db = getDb();
+
+  const rows = await db.select({
+    date:  expenses.date,
+    total: sql<number>`sum(${expenses.amountUsd})`,
+  })
+    .from(expenses)
+    .where(and(eq(expenses.monthId, monthId), eq(expenses.userId, user.id!)))
+    .groupBy(expenses.date);
+
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const byDay = new Map<number, number>();
+  for (const r of rows) {
+    const day = parseInt(r.date.split("-")[2]);
+    byDay.set(day, (byDay.get(day) ?? 0) + Number(r.total));
+  }
+  return Array.from({ length: daysInMonth }, (_, i) => ({ day: i + 1, total: byDay.get(i + 1) ?? 0 }));
+}
+
+export async function getHeadlineInsight(
+  monthId: number,
+  income: number,
+  buckets: BucketBreakdownRow[],
+  thisMonthSpent: number,
+  lastMonthSpent: number,
+  monthLabel: string,
+  lastMonthLabel: string,
+): Promise<string> {
+  if (lastMonthSpent > 0) {
+    const ratio = thisMonthSpent / lastMonthSpent;
+    const pct = Math.abs(Math.round(((thisMonthSpent - lastMonthSpent) / lastMonthSpent) * 100));
+    if (ratio > 1.5) {
+      const biggest = [...buckets].sort((a, b) => b.spent - a.spent)[0];
+      const which = biggest ? biggest.bucket[0].toUpperCase() + biggest.bucket.slice(1) : "Spending";
+      return `Spending up ${pct}% vs ${lastMonthLabel}. ${which} is the biggest mover.`;
+    }
+    if (ratio < 0.7) {
+      const bills = buckets.find((b) => b.bucket === "bills");
+      const billsPct = bills ? bills.pct : 0;
+      return `Spending down ${pct}% vs ${lastMonthLabel} — and you're ${billsPct}% into your bills budget.`;
+    }
+  }
+  const hotBucket = buckets.find((b) => b.pct >= 90);
+  if (hotBucket) {
+    const label = hotBucket.bucket[0].toUpperCase() + hotBucket.bucket.slice(1);
+    return `${label} bucket is ${hotBucket.pct}% used — pace check.`;
+  }
+  if (income > 0) {
+    const targetPct = Math.round((thisMonthSpent / income) * 100);
+    return `Spending steady. You've used ${targetPct}% of your monthly income.`;
+  }
+  return `${monthLabel} is just getting started. Add income and expenses to see trends.`;
 }
