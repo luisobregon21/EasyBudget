@@ -441,13 +441,31 @@ export async function getHeadlineInsight(
 
 export type CompareUnit = "day" | "month" | "year";
 
+export type BucketComparison = {
+  bucket: "savings" | "bills" | "wants";
+  current: number;
+  previous: number;
+  deltaPct: number;
+};
+
 export type ComparisonResult = {
   unit: CompareUnit;
   currentLabel: string;
   previousLabel: string;
+  // Spend
   currentSpent: number;
   previousSpent: number;
   deltaPct: number;
+  // Income
+  currentIncome: number;
+  previousIncome: number;
+  incomeDeltaPct: number;
+  // Net = income - spent
+  currentNet: number;
+  previousNet: number;
+  netDeltaPct: number;
+  // By bucket
+  buckets: BucketComparison[];
 };
 
 async function sumExpensesByDateRange(
@@ -461,6 +479,54 @@ async function sumExpensesByDateRange(
     .from(expenses)
     .where(and(eq(expenses.userId, userId), gte(expenses.date, from), lte(expenses.date, to)));
   return Number(row?.total ?? 0);
+}
+
+async function sumIncomeByDateRange(
+  userId: string,
+  from: string,
+  to: string,
+): Promise<number> {
+  const db = getDb();
+  const [row] = await db
+    .select({ total: sql<number>`coalesce(sum(${incomeEntries.amount}), 0)` })
+    .from(incomeEntries)
+    .where(and(
+      eq(incomeEntries.userId, userId),
+      gte(incomeEntries.expectedDate, from),
+      lte(incomeEntries.expectedDate, to),
+      inArray(incomeEntries.status, ["arrived", "expected"]),
+    ));
+  return Number(row?.total ?? 0);
+}
+
+async function sumSpendByBucketDateRange(
+  userId: string,
+  from: string,
+  to: string,
+): Promise<{ savings: number; bills: number; wants: number }> {
+  const db = getDb();
+  const rows = await db
+    .select({
+      bucket: expenses.bucket,
+      total:  sql<number>`coalesce(sum(${expenses.amountUsd}), 0)`,
+    })
+    .from(expenses)
+    .where(and(eq(expenses.userId, userId), gte(expenses.date, from), lte(expenses.date, to)))
+    .groupBy(expenses.bucket);
+
+  const result = { savings: 0, bills: 0, wants: 0 };
+  for (const r of rows) {
+    if (r.bucket === "savings" || r.bucket === "bills" || r.bucket === "wants") {
+      result[r.bucket] = Number(r.total);
+    }
+  }
+  return result;
+}
+
+function calcDeltaPct(current: number, previous: number): number {
+  if (previous > 0) return Math.round(((current - previous) / previous) * 100);
+  if (current > 0) return 100;
+  return 0;
 }
 
 export async function getComparison(unit: CompareUnit): Promise<ComparisonResult> {
@@ -514,17 +580,43 @@ export async function getComparison(unit: CompareUnit): Promise<ComparisonResult
     previousLabel = `${y - 1} YTD`;
   }
 
-  const [currentSpent, previousSpent] = await Promise.all([
-    sumExpensesByDateRange(user.id!, currentFrom, currentTo),
-    sumExpensesByDateRange(user.id!, previousFrom, previousTo),
-  ]);
+  const [currentSpent, previousSpent, currentIncome, previousIncome, currentBuckets, previousBuckets] =
+    await Promise.all([
+      sumExpensesByDateRange(user.id!, currentFrom, currentTo),
+      sumExpensesByDateRange(user.id!, previousFrom, previousTo),
+      sumIncomeByDateRange(user.id!, currentFrom, currentTo),
+      sumIncomeByDateRange(user.id!, previousFrom, previousTo),
+      sumSpendByBucketDateRange(user.id!, currentFrom, currentTo),
+      sumSpendByBucketDateRange(user.id!, previousFrom, previousTo),
+    ]);
 
-  let deltaPct = 0;
-  if (previousSpent > 0) {
-    deltaPct = Math.round(((currentSpent - previousSpent) / previousSpent) * 100);
-  } else if (currentSpent > 0) {
-    deltaPct = 100;
-  }
+  const deltaPct = calcDeltaPct(currentSpent, previousSpent);
+  const incomeDeltaPct = calcDeltaPct(currentIncome, previousIncome);
 
-  return { unit, currentLabel, previousLabel, currentSpent, previousSpent, deltaPct };
+  const currentNet  = currentIncome - currentSpent;
+  const previousNet = previousIncome - previousSpent;
+  const netDeltaPct = calcDeltaPct(currentNet, previousNet);
+
+  const buckets: BucketComparison[] = (["savings", "bills", "wants"] as const).map((bucket) => ({
+    bucket,
+    current:  currentBuckets[bucket],
+    previous: previousBuckets[bucket],
+    deltaPct: calcDeltaPct(currentBuckets[bucket], previousBuckets[bucket]),
+  }));
+
+  return {
+    unit,
+    currentLabel,
+    previousLabel,
+    currentSpent,
+    previousSpent,
+    deltaPct,
+    currentIncome,
+    previousIncome,
+    incomeDeltaPct,
+    currentNet,
+    previousNet,
+    netDeltaPct,
+    buckets,
+  };
 }
