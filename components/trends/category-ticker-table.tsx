@@ -1,6 +1,8 @@
 import { formatCurrency } from "@/lib/utils";
 import { Sparkline } from "./sparkline";
 import type { CategoryTrendRow } from "@/lib/actions/trends";
+import { IconTile } from "@/components/ui/icon-tile";
+import { tagIcon } from "@/lib/icons";
 
 interface Props {
   rows: CategoryTrendRow[];
@@ -28,7 +30,7 @@ export function CategoryTickerTable({ rows, limit }: Props) {
           const flat = t.deltaPct === 0;
           return (
             <div key={`${t.tagId ?? "null"}-${t.name}`} className="px-4 py-3 flex items-center gap-3">
-              <span className="text-lg">{t.emoji}</span>
+              <IconTile icon={tagIcon(t.name)} />
               <p className="flex-1 text-foreground font-medium text-sm font-mono">{t.name.toUpperCase()}</p>
               <div className="flex items-center gap-6">
                 <p className="w-20 text-right text-foreground text-sm font-mono tabular-nums font-bold">
