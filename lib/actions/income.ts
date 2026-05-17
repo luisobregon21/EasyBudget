@@ -212,6 +212,33 @@ export async function updateIncomeEntryStatus(
   }
 }
 
+export async function updateIncomeEntry(
+  entryId: number,
+  prevState: unknown,
+  formData: FormData,
+): Promise<{ success: boolean; message: string }> {
+  try {
+    const user = await requireSession();
+    const db = getDb();
+    const name = (formData.get("name") as string)?.trim();
+    const amount = parseFloat((formData.get("amount") as string) ?? "0");
+    const expectedDate = (formData.get("expectedDate") as string) || null;
+    const status = (formData.get("status") as "expected" | "might_arrive" | "arrived") || "expected";
+    if (!name || !amount || amount <= 0) return { success: false, message: "Name + amount required." };
+    const arrivedDate = status === "arrived" ? new Date().toISOString().slice(0, 10) : null;
+    const [updated] = await db.update(incomeEntries)
+      .set({ name, amount, status, expectedDate: expectedDate ?? "", arrivedDate })
+      .where(and(eq(incomeEntries.id, entryId), eq(incomeEntries.userId, user.id!)))
+      .returning({ monthId: incomeEntries.monthId });
+    if (updated) await recomputeMonthIncome(user.id!, updated.monthId);
+    revalidatePath("/income");
+    revalidatePath("/");
+    return { success: true, message: "Entry updated" };
+  } catch (e) {
+    return { success: false, message: e instanceof Error ? e.message : "Failed to update entry" };
+  }
+}
+
 export async function deleteIncomeEntry(entryId: number): Promise<{ success: boolean; message: string }> {
   try {
     const user = await requireSession();

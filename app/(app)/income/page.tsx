@@ -7,7 +7,7 @@ import { daysIntoMonth, projectedTotal } from "@/lib/actions/forecast";
 import { ContextStrip } from "@/components/layout/context-strip";
 import { MonthSwitcher } from "@/components/layout/month-switcher";
 import { IncomeHero } from "@/components/income/income-hero";
-import { EntryRow } from "@/components/income/entry-row";
+import { IncomeEntryList } from "@/components/income/income-entry-list";
 import { GoesToCard } from "@/components/income/goes-to-card";
 import { IncomeForm } from "@/components/income/income-form";
 
@@ -73,67 +73,7 @@ export default async function IncomePage({
       <IncomeHero total={income} arrived={arrived} expected={expected} />
 
       {/* entries list */}
-      {entries.length > 0 ? (
-        <div
-          style={{
-            background: "#181028",
-            border: "1px solid rgba(167,139,250,0.13)",
-            borderRadius: 14,
-            padding: "4px 0",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              padding: "10px 14px 6px",
-            }}
-          >
-            <span
-              style={{
-                fontSize: 10,
-                fontWeight: 700,
-                letterSpacing: 1,
-                color: "#5e5279",
-                textTransform: "uppercase",
-              }}
-            >
-              Income sources
-            </span>
-            <span style={{ fontSize: 10.5, color: "#8a7da8" }}>{entries.length} sources</span>
-          </div>
-          {entries.map((e, i) => (
-            <div
-              key={e.id}
-              style={{
-                borderTop: i ? "1px solid rgba(167,139,250,0.13)" : "none",
-              }}
-            >
-              <EntryRow
-                source={e.name}
-                date={e.arrivedDate ?? e.expectedDate ?? ""}
-                amount={e.amount}
-                status={e.status === "arrived" ? "arrived" : "expected"}
-              />
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div
-          style={{
-            background: "#181028",
-            border: "1px solid rgba(167,139,250,0.13)",
-            borderRadius: 14,
-            padding: "24px 14px",
-            textAlign: "center",
-            color: "#8a7da8",
-            fontSize: 12,
-          }}
-        >
-          No income sources yet this month
-        </div>
-      )}
+      <IncomeEntryList entries={entries} />
 
       <GoesToCard obligated={obligated} leftover={leftover} />
 
