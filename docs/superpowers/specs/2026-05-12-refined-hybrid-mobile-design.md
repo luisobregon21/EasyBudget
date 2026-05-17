@@ -20,6 +20,10 @@ No two-column desktop layouts in V1 — the cards stack the same way and just ha
 
 ## Information architecture
 
+### Two-layer nav (Credit-Karma style)
+
+**Bottom nav = top-level sections** (mobile). **Top sub-tabs = scoped sub-views inside the active section**. Top sub-tabs only render when the active section has 2+ sub-views; sections with one view show no top tabs.
+
 ### Bottom nav (new order)
 
 ```
@@ -29,8 +33,43 @@ No two-column desktop layouts in V1 — the cards stack the same way and just ha
 
 - FAB stays as center "Add expense" trigger (unchanged behavior — opens the existing `AddExpenseDrawer`)
 - Tiny progress ticks above the nav: `→ → →` to reinforce lifecycle
-- Trips / Tags / Goals / Settings / Payments move behind a "More" sheet (already implemented; keep it but the trigger moves to a top-right icon since the bottom nav is full)
+- Trips / Tags / Goals / Settings / Payments move behind a top-right **⋯ menu** (button at the top of the page next to a 🔔 notifications icon)
 - Active item: accent-colored icon + bold label
+
+### Top sub-tabs (per section)
+
+| Section | Sub-tabs |
+|---|---|
+| Overview | Today · Allocations · Daily pace · **Expenses** |
+| Income   | (none — single view) |
+| Bills    | All · Overdue · Recurring · Paid · **Calendar** |
+| Trends   | Insights · Categories · Compare |
+
+- Strip sits below the page header, above the page content
+- Active tab has a gradient underline (`background: linear-gradient(90deg, #f59e0b, #ec4899)`)
+- Tab strip is horizontally scrollable when overflowed (mobile)
+- Sections with no sub-tabs hide the strip entirely (Income, Payments)
+- Active sub-tab persists in URL: `?sub=expenses`, `?sub=calendar`, etc. Default = first tab when missing.
+
+### Top action chips (right side of header)
+
+- 🔔 Notifications (placeholder — opens an empty sheet for now; future: bill reminders, expense alerts)
+- ⋯ More (opens slide-up sheet with Payments / Tags / Trips / Goals / Settings)
+
+### Desktop sidebar (mirrors the nav)
+
+Sidebar order on `md+`:
+```
+[Add Expense gradient button]
+─ Top-level ─
+Overview · Income · Bills · Trends
+─ More ─
+Payments · Tags · Trips · Goals
+─ (pinned bottom) ─
+Settings
+```
+
+Top sub-tabs render the same way on desktop (inside the page, not the sidebar).
 
 ### Shared context strip (THE flow fix)
 
@@ -89,6 +128,35 @@ Renders at the top of every one of the 4 core pages, right under the page header
 - **Grouped bill lists** — 4 sections: Overdue (hidden if empty) / This week / Later / Paid
   - Each section header: colored label (red/amber/muted/green) + count + total
   - Each row: small colored icon tile, name, "due May X" / "Xd late" / "paid May X", mono amount (line-through + opacity if paid)
+
+### Overview → Expenses sub-tab (new)
+
+Promoted from `/expenses` into the Overview section as a top sub-tab. Renders the full recent-expense list scoped to the current month.
+
+- **Hero:** "Recent expenses" eyebrow, total dollar amount this week as gradient text, count + period as caption
+- **Filter chips strip** (horizontally scrollable): `All · Today · This week · By category · By card`
+  - `All` is the default; ships only this filter in V1
+  - `Today` / `This week` filter by date
+  - `By category` / `By card` group the list rather than filter — fold-out groupings, V2
+- **Expense list:** same `<IconTile>` + name + `category · date` + mono amount as the Overview "Recent" component
+- Pagination: scroll-to-load, 50 at a time (or just render all if the user has fewer than 100 this month)
+- Tap any row → existing `/expenses/[id]/edit` page
+
+### Bills → Calendar sub-tab (new)
+
+Full-month calendar grid showing every bill due date for the selected month, plus a list of upcoming bills below.
+
+- **Hero:** "{Month} bills due" eyebrow, total dollar amount across the visible month, gradient text
+- **Calendar grid:** 7-column (S-M-T-W-T-F-S header), each day rendered as a circle
+  - Days with bills due: filled gradient circle, day number in white, bold
+  - Past days with bills: dimmed gradient (`opacity: 0.4`)
+  - Today: 1.5px gold ring outline
+  - Empty days: plain day number, no background
+  - Multiple bills on same day: just one circle; tap → expands the bills-list section to show that day's bills
+- **Legend below grid:** "Today" (gold ring), "Upcoming" (gradient circle)
+- **Month switcher pills:** `[Mar] [Apr] [May]` 3-month window centered on selected month; tap navigates
+- **Upcoming bills list** below: same `<IconTile>` + name + date + amount as the Bills page sections, but only future (non-paid) bills
+- Tap a bill row → opens `/bills/[id]/edit`
 
 ### Trends
 
@@ -157,11 +225,16 @@ components/dashboard/allocation-grid.tsx         # NEW — 3-tile bucket allocat
 components/dashboard/daily-pace-card.tsx         # NEW client — daily-spend bar histogram
 components/dashboard/upcoming-bills-strip.tsx    # rewrite — horizontal-scroll cards
 components/dashboard/recent-list.tsx             # rewrite — lucide icons in colored tiles
+components/overview/expenses-tab.tsx             # NEW client — Expenses sub-tab content (hero + filter chips + list)
+components/layout/top-tabs.tsx                   # NEW client — sub-tab strip; reads ?sub from URL
+components/layout/top-action-chips.tsx           # NEW client — 🔔 + ⋯ icon buttons in the header
+components/layout/more-sheet.tsx                 # NEW client — slide-up sheet with Payments/Tags/Trips/Goals/Settings
 components/income/income-hero.tsx                # NEW — Budget total + stacked Arrived/Expected
 components/income/entry-row.tsx                  # rewrite — status column + colored amount
 components/income/goes-to-card.tsx               # NEW — "After bills X you'll have Y"
-components/bills/bills-hero.tsx                  # NEW — Outstanding + due-date calendar + chips
+components/bills/bills-hero.tsx                  # NEW — Outstanding + due-date timeline strip + chips
 components/bills/bills-group.tsx                 # rewrite — tone-colored grouped list
+components/bills/bills-calendar.tsx              # NEW — Calendar sub-tab: grid + month pills + upcoming list
 components/trends/insight-card.tsx               # NEW — left-border colored insight
 components/trends/chart-style-switcher.tsx       # NEW client — Area/Line/Bar pills
 components/trends/monthly-area-chart.tsx         # extend — add Line/Bar modes + projection dot
@@ -225,9 +298,12 @@ These keep the projection math consistent across hero card, context strip, insig
 ## Acceptance criteria
 
 - All 4 mobile pages share the same context strip (same numbers, same layout)
-- Bottom nav order is Overview → Income → [FAB] → Bills → Trends; "More" reachable
+- Bottom nav order is Overview → Income → [FAB] → Bills → Trends; "More" reachable via top-right ⋯
+- Top sub-tab strip renders on Overview / Bills / Trends; hidden on Income (single view)
+- URL persists active sub-tab as `?sub=...`
+- Overview → Expenses sub-tab renders the recent-expense list with at least the `All` filter chip working
+- Bills → Calendar sub-tab renders a full month grid with gradient dots on bill days, gold ring on today, and month switcher pills
 - Daily-pace card on Overview shows histogram with ghost future days + dashed avg
-- Bills page has the due-date calendar with today tick
 - Trends page has insight card with left-border tone and chart-style switcher
 - Production build clean; no Recharts (already removed)
 - Renders correctly at both `< md` (bottom-nav shell) and `md+` (sidebar shell) without per-component branching beyond the layout shell itself
