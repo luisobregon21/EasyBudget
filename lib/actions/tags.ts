@@ -28,9 +28,10 @@ const BUCKET_COLOR: Record<Bucket, string> = {
 };
 
 function parseTagForm(formData: FormData) {
-  const name   = (formData.get("name") as string).trim();
-  const emoji  = ((formData.get("emoji") as string) || "🏷️").trim();
-  const bucket = (formData.get("defaultBucket") as Bucket) || "wants";
+  const name      = (formData.get("name") as string).trim();
+  const emojiRaw  = ((formData.get("emoji") as string) ?? "").trim();
+  const emoji     = emojiRaw === "" ? null : emojiRaw;
+  const bucket    = (formData.get("defaultBucket") as Bucket) || "wants";
   if (!name) throw new Error("Name is required");
   if (!["savings", "bills", "wants"].includes(bucket)) throw new Error("Invalid bucket");
   return { name, emoji, defaultBucket: bucket, color: BUCKET_COLOR[bucket] };

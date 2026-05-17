@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { BucketChip } from "./bucket-chip";
 import { DeleteTagButton } from "./delete-tag-button";
+import { IconTile } from "@/components/ui/icon-tile";
+import { tagIcon } from "@/lib/icons";
 import { createTag, updateTag } from "@/lib/actions/tags";
 
 type Bucket = "savings" | "bills" | "wants";
@@ -14,7 +16,7 @@ type Bucket = "savings" | "bills" | "wants";
 export interface Tag {
   id: number;
   name: string;
-  emoji: string;
+  emoji: string | null;
   defaultBucket: Bucket;
 }
 
@@ -47,7 +49,9 @@ function ViewRow({ tag, expenseCount, onEdit }: ViewProps) {
         onClick={onEdit}
         className="flex-1 flex items-center gap-3 min-w-0 text-left"
       >
-        <span className="text-xl">{tag.emoji}</span>
+        {tag.emoji
+          ? <span className="text-xl shrink-0 w-[30px] text-center">{tag.emoji}</span>
+          : <IconTile icon={tagIcon(tag.name)} />}
         <span className="text-foreground font-medium truncate">{tag.name}</span>
         <BucketChip bucket={tag.defaultBucket} />
       </button>
@@ -89,7 +93,8 @@ function EditRow({ tag, onDone }: EditProps) {
           <Input
             id="emoji"
             name="emoji"
-            defaultValue={tag?.emoji ?? "🏷️"}
+            defaultValue={tag?.emoji ?? ""}
+            placeholder="auto"
             maxLength={4}
             className="bg-bg-deep border-accent-purple/20 text-foreground text-center text-lg"
           />

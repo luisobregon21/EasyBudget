@@ -130,9 +130,22 @@ components/tags/bucket-chip.tsx                      # modify — use BUCKET_ICO
 components/layout/add-expense-drawer.tsx             # modify — bucket picker uses BUCKET_ICON
 ```
 
-## Tags-page exception (must be explicit)
+## Tags page — lucide auto, emoji as user override
 
-`components/tags/tag-row.tsx` still renders the user's chosen `tag.emoji` (both in the view row and the edit form's emoji input). Don't replace that — it's the source of truth.
+`components/tags/tag-row.tsx` renders **lucide auto-derived from `tag.name`** by default. The user can OPTIONALLY set a `tag.emoji` in the edit form; if set, the emoji shows instead of the lucide icon. Both options live together.
+
+Render logic for the view row:
+
+```tsx
+{tag.emoji
+  ? <span className="text-lg">{tag.emoji}</span>     // user-set override
+  : <IconTile icon={tagIcon(tag.name)} />            // auto-derived default
+}
+```
+
+The edit form keeps the emoji input but the label changes from "Emoji" to "Emoji (optional)" and the placeholder is empty (was `🏷️`). When the user submits an empty string, store `null` — not `""` and not a fallback emoji. Existing rows with `tag.emoji` set keep showing their emoji until the user clears it.
+
+DB schema: `tags.emoji` becomes nullable. Existing rows with `"🏷️"` (the historical default) are migrated to `null` so they show the lucide icon. Other emoji are preserved as user overrides.
 
 ## Acceptance criteria
 

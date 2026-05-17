@@ -73,7 +73,7 @@ export const tags = pgTable("tags", {
   id:            serial("id").primaryKey(),
   userId:        text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   name:          text("name").notNull(),
-  emoji:         text("emoji").notNull().default("🏷️"),
+  emoji:         text("emoji"),  // nullable — null = render auto lucide icon from name
   color:         text("color").notNull().default("#a78bfa"),
   defaultBucket: text("default_bucket").$type<"savings" | "bills" | "wants">().notNull().default("wants"),
 });
