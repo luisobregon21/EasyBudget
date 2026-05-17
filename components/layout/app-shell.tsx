@@ -20,7 +20,10 @@ export function AppShell({ children, paymentMethods, tags }: Props) {
   return (
     <>
       <Sidebar onAddExpense={openDrawer} />
-      <main className="flex-1 overflow-y-auto pb-24 md:pb-0 px-4 md:px-8 py-6">
+      <main
+        className="flex-1 overflow-y-auto pb-24 md:pb-0 px-4 md:px-8 py-6"
+        style={{ paddingTop: "max(1.5rem, env(safe-area-inset-top))" }}
+      >
         {children}
       </main>
       <BottomNav onAddExpense={openDrawer} />
