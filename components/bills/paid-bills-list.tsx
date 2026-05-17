@@ -158,7 +158,7 @@ export function PaidBillsList({ payments, showMonth = false }: Props) {
           fontSize: 11,
         }}
       >
-        No bills paid yet this month.
+        {showMonth ? "No paid bills yet. Tap 'Paid' on an overdue or due-this-week bill to log a payment." : "No bills paid yet this month."}
       </div>
     );
   }
