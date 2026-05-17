@@ -94,40 +94,27 @@ const CATEGORY_ICON: Record<string, any> = {
   Subscriptions: Film, Coffee: Coffee, "Savings auto": Landmark, Health: Heart,
 };
 
-// ─── Theme ────────────────────────────────────────────────────────────────
-type Scheme = "gradient" | "mint";
-function makeTheme(scheme: Scheme) {
-  const base = {
-    bgDeep: scheme === "mint" ? "#070d0b" : "#0a0613",
-    bg:     scheme === "mint" ? "#0a1310" : "#0d0918",
-    card:   scheme === "mint" ? "#0e1a16" : "#181028",
-    cardSoft: scheme === "mint" ? "rgba(110,231,183,0.04)" : "rgba(255,255,255,0.025)",
-    cardEdge: scheme === "mint" ? "rgba(110,231,183,0.18)" : "rgba(167,139,250,0.10)",
-    border:   scheme === "mint" ? "rgba(110,231,183,0.14)" : "rgba(167,139,250,0.13)",
+// ─── Theme (gradient only) ────────────────────────────────────────────────
+function makeTheme() {
+  return {
+    bgDeep: "#0a0613",
+    bg: "#0d0918",
+    card: "#181028",
+    cardSoft: "rgba(255,255,255,0.025)",
+    cardEdge: "rgba(167,139,250,0.10)",
+    border: "rgba(167,139,250,0.13)",
     fg: "#ede9f6",
-    muted: scheme === "mint" ? "#7d8d87" : "#8a7da8",
-    mutedDim: scheme === "mint" ? "#4d5a55" : "#5e5279",
+    muted: "#8a7da8",
+    mutedDim: "#5e5279",
     green: "#34d399",
     red: "#f87171",
     amber: "#fbbf24",
-  };
-  if (scheme === "mint") {
-    return {
-      ...base,
-      accent: "#6ee7b7",
-      accent2: "#34d399",
-      gradient: "linear-gradient(90deg, #6ee7b7 0%, #34d399 100%)",
-      bucketColors: { savings: "#6ee7b7", bills: "#fbbf24", wants: "#a78bfa" },
-      heroGlow: "radial-gradient(ellipse 80% 50% at 50% 0%, rgba(110,231,183,0.07), transparent 70%), radial-gradient(ellipse 60% 40% at 50% 100%, rgba(52,211,153,0.08), transparent 70%)",
-    };
-  }
-  return {
-    ...base,
     accent: "#f59e0b",
     accent2: "#ec4899",
     gradient: "linear-gradient(90deg, #f59e0b 0%, #ec4899 100%)",
     bucketColors: { savings: "#f59e0b", bills: "#ec4899", wants: "#a78bfa" },
-    heroGlow: "radial-gradient(ellipse 80% 50% at 50% 0%, rgba(245,158,11,0.08), transparent 70%), radial-gradient(ellipse 60% 40% at 50% 100%, rgba(236,72,153,0.10), transparent 70%)",
+    heroGlow:
+      "radial-gradient(ellipse 80% 50% at 50% 0%, rgba(245,158,11,0.08), transparent 70%), radial-gradient(ellipse 60% 40% at 50% 100%, rgba(236,72,153,0.10), transparent 70%)",
   };
 }
 type Theme = ReturnType<typeof makeTheme>;
@@ -837,27 +824,11 @@ function NavItem({ t, label, icon: Icon, active, onClick }: { t: Theme; label: s
 }
 
 // ─── Outer banner ─────────────────────────────────────────────────────────
-function PreviewShell({ children, scheme, setScheme }: { children: React.ReactNode; scheme: Scheme; setScheme: (s: Scheme) => void }) {
+function PreviewShell({ children }: { children: React.ReactNode }) {
   return (
     <div style={{ minHeight: "100dvh", display: "flex", flexDirection: "column" }}>
       <div style={{ background: "rgba(245,158,11,0.15)", border: "1px solid rgba(245,158,11,0.4)", color: "#fde68a", padding: "8px 12px", fontSize: 12, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
         <span>🎨 Refined Hybrid mockup — seed data, not connected. <Link href="/" style={{ color: "#fbbf24", textDecoration: "underline" }}>Back to app</Link></span>
-        <div style={{ display: "flex", gap: 6 }}>
-          <button onClick={() => setScheme("gradient")} style={{
-            padding: "3px 10px", borderRadius: 999, fontSize: 11, fontWeight: 600,
-            border: scheme === "gradient" ? "1px solid #fbbf24" : "1px solid rgba(255,255,255,0.2)",
-            background: scheme === "gradient" ? "rgba(251,191,36,0.2)" : "transparent",
-            color: scheme === "gradient" ? "#fde68a" : "rgba(255,255,255,0.7)",
-            cursor: "pointer",
-          }}>Gradient</button>
-          <button onClick={() => setScheme("mint")} style={{
-            padding: "3px 10px", borderRadius: 999, fontSize: 11, fontWeight: 600,
-            border: scheme === "mint" ? "1px solid #6ee7b7" : "1px solid rgba(255,255,255,0.2)",
-            background: scheme === "mint" ? "rgba(110,231,183,0.2)" : "transparent",
-            color: scheme === "mint" ? "#a7f3d0" : "rgba(255,255,255,0.7)",
-            cursor: "pointer",
-          }}>Mint</button>
-        </div>
       </div>
       <div style={{ flex: 1, display: "flex", justifyContent: "center", alignItems: "stretch" }}>
         {children}
@@ -868,10 +839,9 @@ function PreviewShell({ children, scheme, setScheme }: { children: React.ReactNo
 
 // ─── Page ─────────────────────────────────────────────────────────────────
 export default function HybridPreview() {
-  const [scheme, setScheme] = useState<Scheme>("gradient");
   const [tab, setTab] = useState<TabKey>("overview");
   const [adding, setAdding] = useState(false);
-  const theme = useMemo(() => makeTheme(scheme), [scheme]);
+  const theme = useMemo(() => makeTheme(), []);
 
   // Lock scroll on the outer page since we have our own scroller
   useEffect(() => {
@@ -881,7 +851,7 @@ export default function HybridPreview() {
   }, []);
 
   return (
-    <PreviewShell scheme={scheme} setScheme={setScheme}>
+    <PreviewShell>
       <div style={{
         position: "relative", width: "100%", maxWidth: 420, margin: "0 auto",
         background: theme.bgDeep, color: theme.fg, overflow: "hidden",

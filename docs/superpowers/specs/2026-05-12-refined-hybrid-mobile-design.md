@@ -1,14 +1,22 @@
-# Refined Hybrid — Mobile Redesign Spec
+# Refined Hybrid — Mobile + Desktop Redesign Spec
 
-**Status:** Approved 2026-05-12
+**Status:** Approved 2026-05-17 (updated; was mobile-only on 2026-05-12)
 **Source of truth:** Claude Design canvas bundle, "Hybrid · all four tabs wired" (`direction-a.jsx` in the handoff)
 **Preview:** `/preview/hybrid` (delete after ship)
 
 ## Goal
 
-Replace the four core mobile screens (Overview, Income, Bills, Trends) and the bottom nav with the designer-approved "Refined Hybrid" layout. Visual identity stays (deep purple/dark + amber→pink gradient) but every screen gets a shared context strip, projection-aware visualizations, and lucide icons instead of emoji. Nav reorders to reflect a money lifecycle: **Overview → Income → Bills → Trends**.
+Replace the four core screens (Overview, Income, Bills, Trends) and the navigation on both **mobile and desktop** with the designer-approved "Refined Hybrid" layout. Visual identity stays (deep purple/dark + amber→pink gradient — **gradient theme only; mint dropped per user**) but every screen gets a shared context strip, projection-aware visualizations, and lucide icons instead of emoji. Nav reorders to reflect a money lifecycle: **Overview → Income → Bills → Trends**.
 
-Desktop is unchanged in this spec (sidebar stays). Mobile-only (`md:hidden`) swap.
+### Mobile vs Desktop
+
+The **content inside the page** (context strip, hero cards, allocation grid, daily-pace card, insight card, ticker tables, etc.) is the same React components at any width. Only the surrounding chrome differs:
+
+- **Mobile (`< md`):** persistent bottom nav (Overview / Income / [FAB] / Bills / Trends), "More" sheet for Tags/Trips/Goals/Settings/Payments.
+- **Desktop (`md+`):** existing left sidebar with the same nav order. No bottom nav. No floating FAB — "Add expense" is the gradient button at the top of the sidebar (already there).
+- Page content max-width on desktop: `max-w-3xl` centered. On mobile, full-width with `px-3.5`.
+
+No two-column desktop layouts in V1 — the cards stack the same way and just have more breathing room on a wide screen.
 
 ## Information architecture
 
@@ -134,17 +142,9 @@ muted:         #8a7da8
 mutedDim:      #5e5279
 ```
 
-### Mint theme (alternative — see Spec #3)
+### Mint theme — REMOVED
 
-```ts
-accent:   #6ee7b7
-accent2:  #34d399
-bg:       #0a1310
-card:     #0e1a16
-bucketColors: { savings: #6ee7b7, bills: #fbbf24, wants: #a78bfa }
-```
-
-User toggles between the two via Settings (Spec #3). Persisted to localStorage; defaults to gradient.
+The hybrid had an optional mint theme as a tweaks-panel toggle. **Dropped** in this revision — gradient is the only theme. No theme picker, no localStorage, no `data-color-scheme` attribute. One CSS path.
 
 ## Components — file map
 
@@ -167,7 +167,6 @@ components/trends/chart-style-switcher.tsx       # NEW client — Area/Line/Bar 
 components/trends/monthly-area-chart.tsx         # extend — add Line/Bar modes + projection dot
 components/trends/category-ticker-table.tsx      # tweak — sort by |Δ%| desc on Trends only
 lib/actions/forecast.ts                          # NEW — projection helpers (linear pace) and pace status
-lib/theme.ts                                     # NEW — colorScheme/density preference helpers (see Spec #3)
 app/(app)/page.tsx                               # rewrite — new Overview
 app/(app)/income/page.tsx                        # rewrite — new Income
 app/(app)/bills/page.tsx                         # rewrite — new Bills
@@ -216,7 +215,7 @@ These keep the projection math consistent across hero card, context strip, insig
 
 ## Out of scope
 
-- No desktop changes
+- No two-column / dashboard-grid desktop layout (cards stack same as mobile, just narrower max-width)
 - No removing emoji from Tags page (only the dashboard/feed surfaces switch to lucide)
 - No re-architecting the existing `useActionState` / drawer patterns — they keep working
 - No new server actions beyond `forecast.ts` (everything else reads existing actions)
@@ -230,5 +229,5 @@ These keep the projection math consistent across hero card, context strip, insig
 - Daily-pace card on Overview shows histogram with ghost future days + dashed avg
 - Bills page has the due-date calendar with today tick
 - Trends page has insight card with left-border tone and chart-style switcher
-- Theme tokens reused from `lib/theme.ts` (Spec #3 unblocks this); gradient is default
 - Production build clean; no Recharts (already removed)
+- Renders correctly at both `< md` (bottom-nav shell) and `md+` (sidebar shell) without per-component branching beyond the layout shell itself
