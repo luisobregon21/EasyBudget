@@ -18,6 +18,7 @@ import { CategoryTickerTable } from "@/components/trends/category-ticker-table";
 import { CategoryViewToggle } from "@/components/trends/category-view-toggle";
 import { BiggestChangesCard } from "@/components/trends/biggest-changes-card";
 import { BucketPulseBars } from "@/components/trends/bucket-pulse-bars";
+import { DailyHeatmap } from "@/components/trends/daily-heatmap";
 
 const VALID_RANGES: Range[] = ["6mo", "12mo", "ytd"];
 const MONTH_LABELS       = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -61,13 +62,14 @@ export default async function TrendsPage({
   const { budgetTotal } = calcIncomeTotals(incomeEntries);
   const income = budgetTotal > 0 ? budgetTotal : (monthData.income ?? 0);
 
-  const [expenseList, byBucket, trend, categoryTrend, lastMonthExpenses, upcomingBills] = await Promise.all([
+  const [expenseList, byBucket, trend, categoryTrend, lastMonthExpenses, upcomingBills, dailySpend] = await Promise.all([
     getExpensesForMonth(monthData.id),
     getExpensesByBucket(monthData.id, income),
     getMonthlyTrend(range),
     getCategoryTrend(range, year, month, effectiveView),
     lastMonthData ? getExpensesForMonth(lastMonthData.id) : Promise.resolve([]),
     getUpcomingBills(7),
+    getDailySpend(monthData.id, year, month),
   ]);
 
   const totalSpent     = expenseList.reduce((s, e) => s + e.amountUsd, 0);
@@ -120,6 +122,11 @@ export default async function TrendsPage({
                 <h3 className="text-foreground font-semibold text-sm">Income vs Spend over time</h3>
               </div>
               <ChartWithSwitcher data={trend} projected={!isFutureMonth ? projected : undefined} />
+            </section>
+
+            <section className="space-y-3">
+              <h3 className="text-foreground font-semibold text-sm">Daily spending — {MONTH_LABELS[month - 1]}</h3>
+              <DailyHeatmap points={dailySpend} year={year} month={month} />
             </section>
 
             <section className="space-y-2">
