@@ -29,6 +29,30 @@ export async function getExpensesForMonth(monthId: number) {
   .orderBy(desc(expenses.date));
 }
 
+export async function getRecentExpenses(monthId: number, limit = 6) {
+  const user = await requireSession();
+  const db = getDb();
+  return db.select({
+    id:            expenses.id,
+    amount:        expenses.amount,
+    currency:      expenses.currency,
+    amountUsd:     expenses.amountUsd,
+    description:   expenses.description,
+    date:          expenses.date,
+    paymentMethod: expenses.paymentMethod,
+    bucket:        expenses.bucket,
+    tagName:       tags.name,
+    tagEmoji:      tags.emoji,
+    tripName:      trips.name,
+  })
+  .from(expenses)
+  .leftJoin(tags,  eq(expenses.tagId,  tags.id))
+  .leftJoin(trips, eq(expenses.tripId, trips.id))
+  .where(and(eq(expenses.monthId, monthId), eq(expenses.userId, user.id!)))
+  .orderBy(desc(expenses.date))
+  .limit(limit);
+}
+
 export async function createExpense(prevState: unknown, formData: FormData): Promise<{ success: boolean; message: string }> {
   const user = await requireSession();
   const db = getDb();
