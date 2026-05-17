@@ -156,6 +156,19 @@ export const incomeEntries = pgTable("income_entries", {
   arrivedDate:  date("arrived_date"),
 });
 
+// NEW: bill payment records (per-month, per-bill)
+export const billPayments = pgTable("bill_payments", {
+  id:        serial("id").primaryKey(),
+  userId:    text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  billId:    integer("bill_id").notNull().references(() => bills.id, { onDelete: "cascade" }),
+  monthId:   integer("month_id").notNull().references(() => months.id, { onDelete: "cascade" }),
+  amount:    real("amount").notNull(),
+  date:      date("date").notNull(),
+  paidLate:  boolean("paid_late").notNull().default(false),
+  note:      text("note"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 // NEW: savings allocation destinations
 export const savingsAllocations = pgTable("savings_allocations", {
   id:         serial("id").primaryKey(),
