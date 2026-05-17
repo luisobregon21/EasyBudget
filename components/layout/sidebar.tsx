@@ -1,17 +1,21 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, BarChart2, Receipt, Plane, Tag, Target, Settings, Wallet, Plus } from "lucide-react";
+import { Home, BarChart2, Receipt, Wallet, CreditCard, Tag, Plane, Target, Settings, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const NAV = [
+const TOP_NAV = [
   { href: "/",        label: "Overview", icon: Home },
   { href: "/income",  label: "Income",   icon: Wallet },
-  { href: "/trends",  label: "Trends",   icon: BarChart2 },
   { href: "/bills",   label: "Bills",    icon: Receipt },
-  { href: "/trips",   label: "Trips",    icon: Plane },
-  { href: "/tags",    label: "Tags",     icon: Tag },
-  { href: "/goals",   label: "Goals",    icon: Target },
+  { href: "/trends",  label: "Trends",   icon: BarChart2 },
+];
+
+const MORE_NAV = [
+  { href: "/payments", label: "Payments", icon: CreditCard },
+  { href: "/tags",     label: "Tags",     icon: Tag },
+  { href: "/trips",    label: "Trips",    icon: Plane },
+  { href: "/goals",    label: "Goals",    icon: Target },
 ];
 
 interface Props {
@@ -33,7 +37,8 @@ export function Sidebar({ onAddExpense }: Props) {
         <Plus size={16} />
         Add Expense
       </button>
-      {NAV.map(({ href, label, icon: Icon }) => (
+
+      {TOP_NAV.map(({ href, label, icon: Icon }) => (
         <Link key={href} href={href}
           className={cn(
             "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors",
@@ -45,9 +50,32 @@ export function Sidebar({ onAddExpense }: Props) {
           {label}
         </Link>
       ))}
+
+      <div className="mt-4 mb-1 px-3">
+        <p className="text-[9px] font-bold tracking-[0.15em] uppercase text-muted-base/60">More</p>
+      </div>
+
+      {MORE_NAV.map(({ href, label, icon: Icon }) => (
+        <Link key={href} href={href}
+          className={cn(
+            "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors",
+            path === href
+              ? "bg-gradient-card border border-accent-gold/25 text-accent-gold"
+              : "text-muted-base hover:text-foreground hover:bg-white/5"
+          )}>
+          <Icon size={16} />
+          {label}
+        </Link>
+      ))}
+
       <div className="flex-1" />
       <Link href="/settings"
-        className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-muted-base hover:text-foreground hover:bg-white/5">
+        className={cn(
+          "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors",
+          path === "/settings"
+            ? "bg-gradient-card border border-accent-gold/25 text-accent-gold"
+            : "text-muted-base hover:text-foreground hover:bg-white/5"
+        )}>
         <Settings size={16} /> Settings
       </Link>
     </nav>
