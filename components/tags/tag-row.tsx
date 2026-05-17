@@ -49,9 +49,7 @@ function ViewRow({ tag, expenseCount, onEdit }: ViewProps) {
         onClick={onEdit}
         className="flex-1 flex items-center gap-3 min-w-0 text-left"
       >
-        {tag.emoji
-          ? <span className="text-xl shrink-0 w-[30px] text-center">{tag.emoji}</span>
-          : <IconTile icon={tagIcon(tag.name)} />}
+        <IconTile icon={tagIcon(tag.name)} />
         <span className="text-foreground font-medium truncate">{tag.name}</span>
         <BucketChip bucket={tag.defaultBucket} />
       </button>
@@ -87,29 +85,16 @@ function EditRow({ tag, onDone }: EditProps) {
 
   return (
     <form action={formAction} className="px-4 py-4 space-y-3 bg-white/[0.02]">
-      <div className="flex gap-3">
-        <div className="w-16 space-y-1">
-          <Label htmlFor="emoji" className="text-muted-base text-[10px] uppercase tracking-widest">Emoji</Label>
-          <Input
-            id="emoji"
-            name="emoji"
-            defaultValue={tag?.emoji ?? ""}
-            placeholder="auto"
-            maxLength={4}
-            className="bg-bg-deep border-accent-purple/20 text-foreground text-center text-lg"
-          />
-        </div>
-        <div className="flex-1 space-y-1">
-          <Label htmlFor="name" className="text-muted-base text-[10px] uppercase tracking-widest">Name</Label>
-          <Input
-            id="name"
-            name="name"
-            required
-            defaultValue={tag?.name ?? ""}
-            placeholder="e.g. Coffee"
-            className="bg-bg-deep border-accent-purple/20 text-foreground"
-          />
-        </div>
+      <div className="space-y-1">
+        <Label htmlFor="name" className="text-muted-base text-[10px] uppercase tracking-widest">Name</Label>
+        <Input
+          id="name"
+          name="name"
+          required
+          defaultValue={tag?.name ?? ""}
+          placeholder="e.g. Coffee"
+          className="bg-bg-deep border-accent-purple/20 text-foreground"
+        />
       </div>
 
       <div className="space-y-1.5">
