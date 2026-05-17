@@ -4,6 +4,7 @@ interface BucketItem {
   pct: number;    // allocation %
   alloc: number;  // dollar allocation
   spent: number;  // dollars spent
+  expected?: number; // projected end-of-month spend
 }
 
 interface Props {
@@ -23,9 +24,17 @@ export function AllocationGrid({ buckets }: Props) {
   return (
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
       {buckets.map((b) => {
-        const color    = BUCKET_COLOR[b.key];
-        const fillPct  = b.alloc > 0 ? Math.min((b.spent / b.alloc) * 100, 100) : 0;
-        const over     = b.spent > b.alloc;
+        const color      = BUCKET_COLOR[b.key];
+        const fillPct    = b.alloc > 0 ? Math.min((b.spent / b.alloc) * 100, 100) : 0;
+        const over       = b.spent > b.alloc;
+        const expected   = b.expected ?? b.spent;
+        // ghost bar: from actual → projected (only when projected > actual)
+        const ghostStart = b.alloc > 0 ? Math.min((b.spent / b.alloc) * 100, 100) : 0;
+        const ghostEnd   = b.alloc > 0 ? Math.min((expected / b.alloc) * 100, 100) : 0;
+        const ghostWidth = Math.max(0, ghostEnd - ghostStart);
+        const ghostOver  = expected > b.alloc;
+        const showGhost  = expected > b.spent && ghostWidth > 0;
+
         return (
           <div
             key={b.key}
@@ -67,6 +76,8 @@ export function AllocationGrid({ buckets }: Props) {
             >
               / {fmtCompact(b.alloc)}
             </div>
+
+            {/* bar: solid actual + ghost projected */}
             <div
               style={{
                 height: 3,
@@ -74,16 +85,50 @@ export function AllocationGrid({ buckets }: Props) {
                 borderRadius: 999,
                 marginTop: 8,
                 overflow: "hidden",
+                position: "relative",
               }}
             >
+              {/* solid actual fill */}
               <div
                 style={{
+                  position: "absolute",
+                  left: 0,
+                  top: 0,
                   height: "100%",
                   width: `${fillPct}%`,
                   background: over ? "#f87171" : color,
                   borderRadius: 999,
                 }}
               />
+              {/* ghost extension for projected */}
+              {showGhost && (
+                <div
+                  style={{
+                    position: "absolute",
+                    left: `${ghostStart}%`,
+                    top: 0,
+                    height: "100%",
+                    width: `${ghostWidth}%`,
+                    background: ghostOver ? "rgba(248,113,113,0.4)" : color,
+                    opacity: 0.35,
+                    borderRadius: 999,
+                  }}
+                />
+              )}
+            </div>
+
+            {/* expected label */}
+            <div
+              style={{
+                fontSize: 8.5,
+                color: "#5e5279",
+                marginTop: 5,
+                fontFamily: "var(--font-geist-mono, monospace)",
+                fontVariantNumeric: "tabular-nums",
+              }}
+            >
+              <span style={{ color: "#8a7da8" }}>exp </span>
+              {fmtCompact(expected)}
             </div>
           </div>
         );

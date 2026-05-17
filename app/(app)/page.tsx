@@ -72,27 +72,34 @@ export default async function HomePage({
   const byBucket = (bucket: string) =>
     expenseRows.filter((e) => e.bucket === bucket).reduce((s, e) => s + (e.amountUsd ?? 0), 0);
 
+  // per-bucket daily pace → projected end-of-month
+  const bucketExpected = (bucketSpent: number) =>
+    dayOfMonth > 0 ? Math.round((bucketSpent / dayOfMonth) * daysInMonth) : bucketSpent;
+
   const buckets = [
     {
-      key:   "savings" as const,
-      name:  "Savings",
-      pct:   monthData.savingsPct ?? 20,
-      alloc: income * ((monthData.savingsPct ?? 20) / 100),
-      spent: byBucket("savings"),
+      key:      "savings" as const,
+      name:     "Savings",
+      pct:      monthData.savingsPct ?? 20,
+      alloc:    income * ((monthData.savingsPct ?? 20) / 100),
+      spent:    byBucket("savings"),
+      expected: bucketExpected(byBucket("savings")),
     },
     {
-      key:   "bills" as const,
-      name:  "Bills",
-      pct:   monthData.billsPct ?? 70,
-      alloc: income * ((monthData.billsPct ?? 70) / 100),
-      spent: byBucket("bills"),
+      key:      "bills" as const,
+      name:     "Bills",
+      pct:      monthData.billsPct ?? 70,
+      alloc:    income * ((monthData.billsPct ?? 70) / 100),
+      spent:    byBucket("bills"),
+      expected: bucketExpected(byBucket("bills")),
     },
     {
-      key:   "wants" as const,
-      name:  "Wants",
-      pct:   monthData.wantsPct ?? 10,
-      alloc: income * ((monthData.wantsPct ?? 10) / 100),
-      spent: byBucket("wants"),
+      key:      "wants" as const,
+      name:     "Wants",
+      pct:      monthData.wantsPct ?? 10,
+      alloc:    income * ((monthData.wantsPct ?? 10) / 100),
+      spent:    byBucket("wants"),
+      expected: bucketExpected(byBucket("wants")),
     },
   ];
 
