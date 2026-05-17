@@ -7,7 +7,7 @@ import {
   getCategoryTrend, getDailySpend, getHeadlineInsight, getComparison,
   type Range, type CategoryView, type CompareUnit,
 } from "@/lib/actions/trends";
-import { currentYearMonth, calcIncomeTotals } from "@/lib/utils";
+import { currentYearMonth, calcIncomeTotals, formatCurrency } from "@/lib/utils";
 import { daysIntoMonth, projectedTotal } from "@/lib/actions/forecast";
 import { ContextStrip } from "@/components/layout/context-strip";
 import { TopTabs } from "@/components/layout/top-tabs";
@@ -16,11 +16,12 @@ import { InsightCard } from "@/components/trends/insight-card";
 import { ChartWithSwitcher } from "@/components/trends/chart-with-switcher";
 import { CategoryTickerTable } from "@/components/trends/category-ticker-table";
 import { CategoryViewToggle } from "@/components/trends/category-view-toggle";
-import { BiggestChangesCard } from "@/components/trends/biggest-changes-card";
 import { BucketPulseBars } from "@/components/trends/bucket-pulse-bars";
 import { DailyHeatmap } from "@/components/trends/daily-heatmap";
 import { CompareUnitToggle } from "@/components/trends/compare-unit-toggle";
-import type { ComparisonResult, CategoryTrendRow } from "@/lib/actions/trends";
+import { StackedCompareBar } from "@/components/trends/stacked-compare-bar";
+import { CompareBucketRows } from "@/components/trends/compare-bucket-rows";
+import type { ComparisonResult } from "@/lib/actions/trends";
 
 const VALID_RANGES: Range[] = ["6mo", "12mo", "ytd"];
 const MONTH_LABELS       = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -166,7 +167,6 @@ export default async function TrendsPage({
           <CompareSection
             comparison={comparison}
             compareUnit={compareUnit}
-            categoryTrend={categoryTrend}
           />
         )}
       </div>
@@ -176,108 +176,107 @@ export default async function TrendsPage({
 
 // ── Compare section ───────────────────────────────────────────────────────────
 
-const fmtMoney = (n: number) =>
-  "$" + Math.round(n).toLocaleString("en-US");
+function MetricCard({
+  kicker,
+  value,
+  delta,
+  previousLabel,
+  previousValue,
+  isCurrency = true,
+  goodDirection = "down",
+}: {
+  kicker: string;
+  value: number;
+  delta: number;
+  previousLabel: string;
+  previousValue: number;
+  isCurrency?: boolean;
+  goodDirection?: "up" | "down";
+}) {
+  const flat = delta === 0 && value === previousValue;
+  const isGood = goodDirection === "up" ? delta > 0 : delta < 0;
+  const toneClass = isGood ? "text-emerald-400" : "text-red-400";
+  return (
+    <div className="rounded-2xl bg-white/[0.03] border border-accent-purple/13 p-4">
+      <p className="text-muted-base text-[9px] uppercase tracking-widest font-bold">{kicker}</p>
+      <p className="text-foreground font-mono text-2xl font-black tabular-nums mt-1">
+        {isCurrency ? formatCurrency(value) : value}
+      </p>
+      {!flat && (
+        <p className={`text-xs font-mono font-bold mt-1 ${toneClass}`}>
+          {delta > 0 ? "▲" : "▼"} {Math.abs(delta)}%
+        </p>
+      )}
+      <p className="text-muted-base text-[10px] mt-1 font-mono">
+        vs {previousLabel}: {isCurrency ? formatCurrency(previousValue) : previousValue}
+      </p>
+    </div>
+  );
+}
 
 function CompareSection({
   comparison,
   compareUnit,
-  categoryTrend,
 }: {
   comparison: ComparisonResult;
   compareUnit: CompareUnit;
-  categoryTrend: CategoryTrendRow[];
 }) {
-  const up      = comparison.currentSpent > comparison.previousSpent;
-  const same    = comparison.currentSpent === comparison.previousSpent;
-  const deltaAbs = Math.abs(comparison.deltaPct);
-  const deltaColor = up ? "#f87171" : same ? "#8a7da8" : "#34d399";
-  const deltaSign  = up ? "+" : same ? "" : "-";
+  const currentBuckets = {
+    savings: comparison.buckets.find((b) => b.bucket === "savings")?.current ?? 0,
+    bills:   comparison.buckets.find((b) => b.bucket === "bills")?.current ?? 0,
+    wants:   comparison.buckets.find((b) => b.bucket === "wants")?.current ?? 0,
+  };
+  const previousBuckets = {
+    savings: comparison.buckets.find((b) => b.bucket === "savings")?.previous ?? 0,
+    bills:   comparison.buckets.find((b) => b.bucket === "bills")?.previous ?? 0,
+    wants:   comparison.buckets.find((b) => b.bucket === "wants")?.previous ?? 0,
+  };
 
   return (
     <div className="space-y-4">
-      {/* unit toggle */}
       <CompareUnitToggle current={compareUnit} />
 
-      {/* side-by-side cards */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-        {/* current period */}
-        <div
-          style={{
-            background: "#181028",
-            border: "1px solid rgba(167,139,250,0.18)",
-            borderRadius: 14,
-            padding: "14px 12px",
-          }}
-        >
-          <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: 0.8, color: "#5e5279", textTransform: "uppercase", marginBottom: 6 }}>
-            {comparison.currentLabel}
-          </p>
-          <p
-            style={{
-              fontSize: 22,
-              fontWeight: 700,
-              color: "#ede9f6",
-              fontFamily: "var(--font-geist-mono, monospace)",
-              fontVariantNumeric: "tabular-nums",
-              letterSpacing: -0.5,
-            }}
-          >
-            {fmtMoney(comparison.currentSpent)}
-          </p>
-        </div>
-
-        {/* previous period */}
-        <div
-          style={{
-            background: "#13091f",
-            border: "1px solid rgba(167,139,250,0.10)",
-            borderRadius: 14,
-            padding: "14px 12px",
-          }}
-        >
-          <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: 0.8, color: "#5e5279", textTransform: "uppercase", marginBottom: 6 }}>
-            {comparison.previousLabel}
-          </p>
-          <p
-            style={{
-              fontSize: 22,
-              fontWeight: 700,
-              color: "#8a7da8",
-              fontFamily: "var(--font-geist-mono, monospace)",
-              fontVariantNumeric: "tabular-nums",
-              letterSpacing: -0.5,
-            }}
-          >
-            {fmtMoney(comparison.previousSpent)}
-          </p>
-        </div>
+      {/* Big 3 metric cards */}
+      <div className="grid grid-cols-3 gap-3">
+        <MetricCard
+          kicker="Income"
+          value={comparison.currentIncome}
+          delta={comparison.incomeDeltaPct}
+          previousLabel={comparison.previousLabel}
+          previousValue={comparison.previousIncome}
+          goodDirection="up"
+        />
+        <MetricCard
+          kicker="Spend"
+          value={comparison.currentSpent}
+          delta={comparison.deltaPct}
+          previousLabel={comparison.previousLabel}
+          previousValue={comparison.previousSpent}
+          goodDirection="down"
+        />
+        <MetricCard
+          kicker="Net"
+          value={comparison.currentNet}
+          delta={comparison.netDeltaPct}
+          previousLabel={comparison.previousLabel}
+          previousValue={comparison.previousNet}
+          goodDirection="up"
+        />
       </div>
 
-      {/* delta chip */}
-      <div style={{ display: "flex", justifyContent: "center" }}>
-        <div
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 5,
-            background: "rgba(255,255,255,0.04)",
-            border: `1px solid ${deltaColor}33`,
-            borderRadius: 999,
-            padding: "5px 14px",
-          }}
-        >
-          <span style={{ fontSize: 13, fontWeight: 700, color: deltaColor, fontFamily: "var(--font-geist-mono, monospace)" }}>
-            {deltaSign}{deltaAbs}%
-          </span>
-          <span style={{ fontSize: 10, color: "#8a7da8" }}>
-            vs {comparison.previousLabel}
-          </span>
-        </div>
-      </div>
+      {/* Stacked bar chart */}
+      <StackedCompareBar
+        currentLabel={comparison.currentLabel}
+        previousLabel={comparison.previousLabel}
+        current={currentBuckets}
+        previous={previousBuckets}
+      />
 
-      {/* biggest changes */}
-      <BiggestChangesCard rows={categoryTrend} />
+      {/* Bucket rows */}
+      <CompareBucketRows
+        buckets={comparison.buckets}
+        previousLabel={comparison.previousLabel}
+      />
     </div>
   );
 }
