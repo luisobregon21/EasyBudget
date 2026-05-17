@@ -177,3 +177,17 @@ export const savingsAllocations = pgTable("savings_allocations", {
   percentage: integer("percentage").notNull(),
   sortOrder:  integer("sort_order").notNull().default(0),
 });
+
+// NEW: credit card payments (transfers, not expenses)
+export const cardPayments = pgTable("card_payments", {
+  id:               serial("id").primaryKey(),
+  userId:           text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  monthId:          integer("month_id").notNull().references(() => months.id, { onDelete: "cascade" }),
+  creditCardId:     integer("credit_card_id").notNull().references(() => creditCards.id, { onDelete: "cascade" }),
+  amount:           real("amount").notNull(),
+  date:             date("date").notNull(),
+  paidFromMethodId: integer("paid_from_method_id").references(() => creditCards.id, { onDelete: "set null" }),
+  note:             text("note"),
+  isAdjustment:     boolean("is_adjustment").notNull().default(false),
+  createdAt:        timestamp("created_at").notNull().defaultNow(),
+});
