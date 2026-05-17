@@ -84,7 +84,7 @@ export function BillsCalendar({ year, month, billDays, bills }: Props) {
   ];
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+    <div style={{ maxWidth: "28rem", margin: "0 auto", display: "flex", flexDirection: "column", gap: 12 }}>
       {/* header */}
       <div>
         <div style={{ fontSize: 11, color: "#8a7da8", fontWeight: 600 }}>
