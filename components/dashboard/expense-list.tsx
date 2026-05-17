@@ -1,5 +1,7 @@
 import { formatCurrency } from "@/lib/utils";
 import Link from "next/link";
+import { IconTile } from "@/components/ui/icon-tile";
+import { tagIcon } from "@/lib/icons";
 
 type Expense = {
   id: number;
@@ -39,9 +41,7 @@ export function ExpenseList({ expenses }: { expenses: Expense[] }) {
           className="flex justify-between items-center py-2.5 border-b border-white/5 last:border-0"
         >
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-white/[0.06] flex items-center justify-center text-sm">
-              {e.tagEmoji ?? "📦"}
-            </div>
+            <IconTile icon={tagIcon(e.tagName ?? e.tagEmoji)} />
             <div>
               <p className="text-foreground text-sm font-medium">{e.description}</p>
               <p className="text-muted-base text-[10px]">
