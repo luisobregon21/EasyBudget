@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 import { EndTripForm } from "@/components/trips/end-trip-form";
+import { EditTripDatesForm } from "@/components/trips/edit-trip-dates-form";
 
 export default async function TripDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -33,6 +34,9 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
           <p className="text-muted-base text-sm">
             ✈️ {trip.destination} · {trip.startDate} → {isOngoing ? "ongoing" : trip.endDate}
           </p>
+          <div className="mt-1">
+            <EditTripDatesForm tripId={trip.id} startDate={trip.startDate} endDate={trip.endDate ?? null} />
+          </div>
         </div>
       </div>
 

@@ -79,6 +79,24 @@ export async function createTrip(prevState: unknown, formData: FormData): Promis
   redirect(`/trips/${trip.id}`);
 }
 
+export async function updateTripDates(tripId: number, prevState: unknown, formData: FormData): Promise<{ success: boolean; message: string }> {
+  try {
+    const user = await requireSession();
+    const db = getDb();
+    const startDate = formData.get("startDate") as string;
+    const endDate = (formData.get("endDate") as string) || null;
+    if (!startDate) return { success: false, message: "Start date required." };
+    if (endDate && endDate < startDate) return { success: false, message: "End date must be after start date." };
+    await db.update(trips).set({ startDate, endDate })
+      .where(and(eq(trips.id, tripId), eq(trips.userId, user.id!)));
+    revalidatePath("/trips");
+    revalidatePath(`/trips/${tripId}`);
+    return { success: true, message: "Dates updated" };
+  } catch (e) {
+    return { success: false, message: e instanceof Error ? e.message : "Failed to update dates" };
+  }
+}
+
 export async function endTrip(tripId: number, prevState: unknown, formData: FormData): Promise<{ success: boolean; message: string }> {
   const user = await requireSession();
   const db = getDb();
