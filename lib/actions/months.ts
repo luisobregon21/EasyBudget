@@ -29,17 +29,29 @@ export async function getOrCreateMonth(year: number, month: number) {
   const settings = await db.select().from(userSettings).where(eq(userSettings.userId, userId)).limit(1);
   const defaults = settings[0] ?? { defaultSavingsPct: 20, defaultWantsPct: 10, defaultBillsPct: 70 };
 
-  const [created] = await db.insert(months).values({
+  // INSERT ... ON CONFLICT DO NOTHING: protects against concurrent requests
+  // racing past the SELECT above. The unique index on (user, year, month)
+  // makes the second insert a no-op and forces us to re-fetch.
+  const created = await db.insert(months).values({
     userId,
     year,
     month,
     savingsPct: defaults.defaultSavingsPct,
     wantsPct:   defaults.defaultWantsPct,
     billsPct:   defaults.defaultBillsPct,
-  }).returning();
+  }).onConflictDoNothing({ target: [months.userId, months.year, months.month] }).returning();
 
-  await generateMonthIncomeEntries(created.id, year, month);
-  return created;
+  let row = created[0];
+  if (!row) {
+    // Someone else inserted concurrently — re-fetch.
+    const [refetched] = await db.select().from(months)
+      .where(and(eq(months.userId, userId), eq(months.year, year), eq(months.month, month)))
+      .limit(1);
+    row = refetched;
+  }
+
+  await generateMonthIncomeEntries(row.id, year, month);
+  return row;
 }
 
 export async function updateMonthIncome(monthId: number, income: number, openingBalance: number) {

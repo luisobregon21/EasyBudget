@@ -1,6 +1,6 @@
 import {
   pgTable, text, integer, real, boolean,
-  timestamp, date, primaryKey, serial, index
+  timestamp, date, primaryKey, serial, index, uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import type { AdapterAccount } from "@auth/core/adapters";
@@ -66,7 +66,7 @@ export const months = pgTable("months", {
   wantsPct:       integer("wants_pct").notNull().default(10),
   billsPct:       integer("bills_pct").notNull().default(70),
 }, (t) => ({
-  uniq: index("months_user_year_month_idx").on(t.userId, t.year, t.month),
+  uniq: uniqueIndex("months_user_year_month_idx").on(t.userId, t.year, t.month),
 }));
 
 export const tags = pgTable("tags", {
