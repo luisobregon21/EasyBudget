@@ -85,23 +85,26 @@ export function MonthlyAreaChart({ data, style = "area", projected }: Props) {
         })}
 
         {/* ─── Bar mode ─────────────────────────────────── */}
-        {style === "bar" && data.map((d, i) => {
-          const bw = step * 0.32;
-          return (
+        {style === "bar" && (() => {
+          // Cap bar width so a 2-3-month chart doesn't blow up to 80px wide bars.
+          // 18px is comfortable; scale down for dense charts.
+          const bw = Math.min(18, step * 0.32);
+          const gap = 2;
+          return data.map((d, i) => (
             <g key={i}>
               <rect
-                x={X(i) - bw - 2} y={Y(d.income)}
+                x={X(i) - bw - gap / 2} y={Y(d.income)}
                 width={bw} height={plotH - (Y(d.income) - padT)}
                 fill="#f59e0b" opacity={0.85} rx={1}
               />
               <rect
-                x={X(i) + 2} y={Y(d.spent)}
+                x={X(i) + gap / 2} y={Y(d.spent)}
                 width={bw} height={plotH - (Y(d.spent) - padT)}
                 fill="#ec4899" opacity={0.85} rx={1}
               />
             </g>
-          );
-        })}
+          ));
+        })()}
 
         {/* ─── Line mode ────────────────────────────────── */}
         {style === "line" && (
