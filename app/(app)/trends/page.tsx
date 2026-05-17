@@ -176,39 +176,70 @@ export default async function TrendsPage({
 
 // ── Compare section ───────────────────────────────────────────────────────────
 
-function MetricCard({
-  kicker,
-  value,
-  delta,
-  previousLabel,
-  previousValue,
-  isCurrency = true,
-  goodDirection = "down",
-}: {
-  kicker: string;
-  value: number;
-  delta: number;
-  previousLabel: string;
-  previousValue: number;
-  isCurrency?: boolean;
-  goodDirection?: "up" | "down";
-}) {
-  const flat = delta === 0 && value === previousValue;
-  const isGood = goodDirection === "up" ? delta > 0 : delta < 0;
-  const toneClass = isGood ? "text-emerald-400" : "text-red-400";
+function IncomeCompareCard({ comparison }: { comparison: ComparisonResult }) {
   return (
     <div className="rounded-2xl bg-white/[0.03] border border-accent-purple/13 p-4">
-      <p className="text-muted-base text-[9px] uppercase tracking-widest font-bold">{kicker}</p>
+      <p className="text-muted-base text-[9px] uppercase tracking-widest font-bold">Income</p>
       <p className="text-foreground font-mono text-2xl font-black tabular-nums mt-1">
-        {isCurrency ? formatCurrency(value) : value}
+        {formatCurrency(comparison.currentArrived)}
       </p>
-      {!flat && (
-        <p className={`text-xs font-mono font-bold mt-1 ${toneClass}`}>
-          {delta > 0 ? "▲" : "▼"} {Math.abs(delta)}%
+      {comparison.currentExpected > 0 && (
+        <p className="text-muted-base text-[10px] font-mono mt-1">
+          + {formatCurrency(comparison.currentExpected)} expected = {formatCurrency(comparison.currentIncome)} total
         </p>
       )}
       <p className="text-muted-base text-[10px] mt-1 font-mono">
-        vs {previousLabel}: {isCurrency ? formatCurrency(previousValue) : previousValue}
+        vs {comparison.previousLabel}: arrived {formatCurrency(comparison.previousArrived)}
+        {comparison.previousExpected > 0 ? `, total ${formatCurrency(comparison.previousIncome)}` : ""}
+      </p>
+    </div>
+  );
+}
+
+function SpendCompareCard({ comparison }: { comparison: ComparisonResult }) {
+  const up = comparison.deltaPct > 0;
+  const flat = comparison.deltaPct === 0 && comparison.currentSpent === comparison.previousSpent;
+  return (
+    <div className="rounded-2xl bg-white/[0.03] border border-accent-purple/13 p-4">
+      <p className="text-muted-base text-[9px] uppercase tracking-widest font-bold">Spend</p>
+      <p className="text-foreground font-mono text-2xl font-black tabular-nums mt-1">
+        {formatCurrency(comparison.currentSpent)}
+      </p>
+      {!flat && (
+        <p className={`text-xs font-mono font-bold mt-1 ${up ? "text-red-400" : "text-emerald-400"}`}>
+          {up ? "▲" : "▼"} {Math.abs(comparison.deltaPct)}%
+        </p>
+      )}
+      <p className="text-muted-base text-[10px] mt-1 font-mono">
+        vs {comparison.previousLabel}: {formatCurrency(comparison.previousSpent)}
+      </p>
+    </div>
+  );
+}
+
+function NetCompareCard({ comparison }: { comparison: ComparisonResult }) {
+  const nowUp = comparison.netNowDeltaPct > 0;        // up is GOOD for net
+  const flat  = comparison.netNowDeltaPct === 0 && comparison.currentNetNow === comparison.previousNet;
+  const hasProjection = comparison.unit !== "day" && comparison.currentExpected > 0;
+  return (
+    <div className="rounded-2xl bg-white/[0.03] border border-accent-purple/13 p-4">
+      <p className="text-muted-base text-[9px] uppercase tracking-widest font-bold">Net</p>
+      <p className="text-foreground font-mono text-2xl font-black tabular-nums mt-1">
+        {formatCurrency(comparison.currentNetNow)}
+        <span className="text-muted-base text-[10px] font-normal ml-1">now</span>
+      </p>
+      {!flat && (
+        <p className={`text-xs font-mono font-bold mt-1 ${nowUp ? "text-emerald-400" : "text-red-400"}`}>
+          {nowUp ? "▲" : "▼"} {Math.abs(comparison.netNowDeltaPct)}%
+        </p>
+      )}
+      {hasProjection && (
+        <p className="text-muted-base text-[10px] mt-1 font-mono">
+          Forecast: {formatCurrency(comparison.currentNetForecast)}
+        </p>
+      )}
+      <p className="text-muted-base text-[10px] mt-1 font-mono">
+        vs {comparison.previousLabel}: {formatCurrency(comparison.previousNet)}
       </p>
     </div>
   );
@@ -237,31 +268,10 @@ function CompareSection({
       <CompareUnitToggle current={compareUnit} />
 
       {/* Big 3 metric cards */}
-      <div className="grid grid-cols-3 gap-3">
-        <MetricCard
-          kicker="Income"
-          value={comparison.currentIncome}
-          delta={comparison.incomeDeltaPct}
-          previousLabel={comparison.previousLabel}
-          previousValue={comparison.previousIncome}
-          goodDirection="up"
-        />
-        <MetricCard
-          kicker="Spend"
-          value={comparison.currentSpent}
-          delta={comparison.deltaPct}
-          previousLabel={comparison.previousLabel}
-          previousValue={comparison.previousSpent}
-          goodDirection="down"
-        />
-        <MetricCard
-          kicker="Net"
-          value={comparison.currentNet}
-          delta={comparison.netDeltaPct}
-          previousLabel={comparison.previousLabel}
-          previousValue={comparison.previousNet}
-          goodDirection="up"
-        />
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <IncomeCompareCard comparison={comparison} />
+        <SpendCompareCard  comparison={comparison} />
+        <NetCompareCard    comparison={comparison} />
       </div>
 
       {/* Stacked bar chart */}
