@@ -1,46 +1,107 @@
-import { formatCurrency } from "@/lib/utils";
-import { IconTile } from "@/components/ui/icon-tile";
 import { BILL_ICON } from "@/lib/icons";
 
-const MONTHS_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+type BillStatus = "overdue" | "due-soon" | "upcoming" | "paid";
 
 type Bill = {
-  id: number; name: string; amount: number; dueDay: number; type: string;
-  frequency?: string; renewalMonth?: number | null; renewalDay?: number | null;
+  id: number;
+  name: string;
+  amount: number;
+  dueDay: number;
+  type: string;
+  status?: BillStatus;
 };
 
-export function UpcomingBillsStrip({ bills }: { bills: Bill[] }) {
+interface Props {
+  bills: Bill[];
+  dayOfMonth?: number;
+}
+
+const fmtDec = (n: number) =>
+  "$" + n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+export function UpcomingBillsStrip({ bills, dayOfMonth }: Props) {
   if (bills.length === 0) return null;
-  const today = new Date().getDate();
+  const today = dayOfMonth ?? new Date().getDate();
 
   return (
-    <div className="rounded-2xl bg-white/[0.03] border border-accent-purple/10 p-5">
-      <h3 className="text-accent-purple-light text-[10px] uppercase tracking-widest font-semibold mb-3">
-        Due Soon
-      </h3>
-      <div className="space-y-2">
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          padding: "0 4px",
+        }}
+      >
+        <span
+          style={{
+            fontSize: 10,
+            fontWeight: 700,
+            letterSpacing: 1,
+            color: "#5e5279",
+            textTransform: "uppercase",
+          }}
+        >
+          Upcoming bills
+        </span>
+      </div>
+
+      <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 2 }}>
         {bills.map((b) => {
-          const isYearly = b.frequency === "yearly";
-          const dueDay = isYearly ? (b.renewalDay ?? 1) : b.dueDay;
-          const daysUntil = dueDay >= today ? dueDay - today : 31 - today + dueDay;
-          const dueDateLabel = isYearly
-            ? `${MONTHS_SHORT[(b.renewalMonth ?? 1) - 1]} ${b.renewalDay}`
-            : `day ${b.dueDay}`;
+          const IconCmp = BILL_ICON[b.type] ?? BILL_ICON.other;
+          const derivedStatus: BillStatus = b.status ?? (b.dueDay < today ? "overdue" : b.dueDay <= today + 3 ? "due-soon" : "upcoming");
+          const isOverdue = derivedStatus === "overdue";
+          const daysLate  = today - b.dueDay;
+          const daysAhead = b.dueDay - today;
+
           return (
-            <div key={b.id} className="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
-              <div className="flex items-center gap-3">
-                <IconTile
-                  icon={BILL_ICON[b.type] ?? BILL_ICON.other}
-                  tone={daysUntil === 0 ? "bad" : daysUntil <= 3 ? "warn" : "neutral"}
-                />
-                <div>
-                  <p className="text-foreground text-sm font-medium">{b.name}</p>
-                  <p className="text-muted-base text-[10px]">
-                    Due {daysUntil === 0 ? "today" : `in ${daysUntil} day${daysUntil === 1 ? "" : "s"}`} ({dueDateLabel})
-                  </p>
-                </div>
+            <div
+              key={b.id}
+              style={{
+                minWidth: 132,
+                padding: 11,
+                background: isOverdue ? "rgba(248,113,113,0.06)" : "#181028",
+                border: `1px solid ${isOverdue ? "rgba(248,113,113,0.25)" : "rgba(167,139,250,0.13)"}`,
+                borderRadius: 12,
+                flexShrink: 0,
+              }}
+            >
+              <IconCmp size={15} color={isOverdue ? "#f87171" : "#8a7da8"} />
+              <div
+                style={{
+                  fontSize: 11,
+                  color: "#ede9f6",
+                  marginTop: 6,
+                  fontWeight: 500,
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                {b.name.split("—")[0].trim()}
               </div>
-              <span className="text-amber-400 font-semibold text-sm">{formatCurrency(b.amount)}</span>
+              <div
+                style={{
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: "#ede9f6",
+                  marginTop: 2,
+                  fontFamily: "var(--font-geist-mono, monospace)",
+                  fontVariantNumeric: "tabular-nums",
+                }}
+              >
+                {fmtDec(b.amount)}
+              </div>
+              <div
+                style={{
+                  fontSize: 9.5,
+                  color: isOverdue ? "#f87171" : "#5e5279",
+                  marginTop: 3,
+                  fontFamily: "var(--font-geist-mono, monospace)",
+                }}
+              >
+                {isOverdue ? `${daysLate}d late` : `in ${daysAhead}d`}
+              </div>
             </div>
           );
         })}
