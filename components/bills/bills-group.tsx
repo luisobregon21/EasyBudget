@@ -1,4 +1,5 @@
 import { BILL_ICON } from "@/lib/icons";
+import { MarkPaidButton } from "@/components/bills/mark-paid-button";
 
 type Tone = "bad" | "warn" | "good" | "neutral";
 
@@ -17,6 +18,8 @@ interface Props {
   tone: Tone;
   emptyHide?: boolean;
   dayOfMonth?: number;
+  /** When provided, a "Mark paid" button appears on each non-paid row */
+  monthId?: number;
 }
 
 const fmt = (n: number) => "$" + Math.round(n).toLocaleString("en-US");
@@ -44,7 +47,7 @@ const TONE_BORDER: Record<Tone, string> = {
   neutral: "rgba(167,139,250,0.13)",
 };
 
-export function BillsGroup({ label, bills, tone, emptyHide = false, dayOfMonth }: Props) {
+export function BillsGroup({ label, bills, tone, emptyHide = false, dayOfMonth, monthId }: Props) {
   if (!bills.length && emptyHide) return null;
 
   const today      = dayOfMonth ?? new Date().getDate();
@@ -179,6 +182,10 @@ export function BillsGroup({ label, bills, tone, emptyHide = false, dayOfMonth }
               >
                 {fmtDec(b.amount)}
               </div>
+
+              {!isPaid && monthId !== undefined && (
+                <MarkPaidButton billId={b.id} monthId={monthId} />
+              )}
             </div>
           );
         })}

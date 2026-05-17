@@ -1,4 +1,4 @@
-import { getUserBills, getUpcomingBills } from "@/lib/actions/bills";
+import { getUserBills, getUpcomingBills, getBillPaymentsForMonth } from "@/lib/actions/bills";
 import { getOrCreateMonth, getMonth } from "@/lib/actions/months";
 import { getIncomeEntries, cleanupBackfilledPastEntries } from "@/lib/actions/income";
 import { getExpensesForMonth } from "@/lib/actions/expenses";
@@ -10,6 +10,7 @@ import { MonthSwitcher } from "@/components/layout/month-switcher";
 import { BillsHero } from "@/components/bills/bills-hero";
 import { BillsGroup } from "@/components/bills/bills-group";
 import { BillsCalendar } from "@/components/bills/bills-calendar";
+import { PaidBillsList } from "@/components/bills/paid-bills-list";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
@@ -98,12 +99,13 @@ export default async function BillsPage({
   const last      = prevMonthCoords(year, month);
   const lastMonthData = await getMonth(last.year, last.month);
 
-  const [billsList, upcomingBillsWeek, incomeEntries, expenseRows, lastMonthExpenses] = await Promise.all([
+  const [billsList, upcomingBillsWeek, incomeEntries, expenseRows, lastMonthExpenses, paidBillPayments] = await Promise.all([
     getUserBills(),
     getUpcomingBills(7),
     getIncomeEntries(monthData.id),
     getExpensesForMonth(monthData.id),
     lastMonthData ? getExpensesForMonth(lastMonthData.id) : Promise.resolve([]),
+    getBillPaymentsForMonth(monthData.id),
   ]);
 
   const { budgetTotal } = calcIncomeTotals(incomeEntries);
@@ -126,8 +128,9 @@ export default async function BillsPage({
   const overdueBills  = withStatus.filter((b) => b.computedStatus === "overdue");
   const dueSoonBills  = withStatus.filter((b) => b.computedStatus === "due-soon");
   const upcomingBills = withStatus.filter((b) => b.computedStatus === "upcoming");
-  // For V1, paid = empty (we have no paid data without a month-specific lookup)
-  const paidBills: typeof withStatus = [];
+  // Paid bills: derive from paidBillPayments (set of billIds paid this month)
+  const paidBillIds = new Set(paidBillPayments.map((p) => p.billId));
+  const paidBills = withStatus.filter((b) => paidBillIds.has(b.id));
 
   // BillsHero needs BillMarker[]
   const billMarkers = withStatus.map((b) => ({
@@ -206,10 +209,18 @@ export default async function BillsPage({
               dayOfMonth={dayOfMonth}
               daysInMonth={daysInMonth}
             />
-            <BillsGroup label="Overdue"    bills={toGroupBills(overdueBills)}  tone="bad"     emptyHide dayOfMonth={dayOfMonth} />
-            <BillsGroup label="This Week"  bills={toGroupBills(dueSoonBills)}  tone="warn"    emptyHide dayOfMonth={dayOfMonth} />
-            <BillsGroup label="Upcoming"   bills={toGroupBills(upcomingBills)} tone="neutral" emptyHide dayOfMonth={dayOfMonth} />
-            <BillsGroup label="Paid"       bills={toGroupBills(paidBills)}     tone="good"    emptyHide dayOfMonth={dayOfMonth} />
+            <BillsGroup label="Overdue"    bills={toGroupBills(overdueBills)}  tone="bad"     emptyHide dayOfMonth={dayOfMonth} monthId={monthData.id} />
+            <BillsGroup label="This Week"  bills={toGroupBills(dueSoonBills)}  tone="warn"    emptyHide dayOfMonth={dayOfMonth} monthId={monthData.id} />
+            <BillsGroup label="Upcoming"   bills={toGroupBills(upcomingBills)} tone="neutral" emptyHide dayOfMonth={dayOfMonth} monthId={monthData.id} />
+            {paidBillPayments.length > 0 && (
+              <>
+                <div style={{ padding: "0 4px 6px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: "#34d399", textTransform: "uppercase" }}>Paid</span>
+                  <span style={{ fontSize: 10, color: "#5e5279", fontFamily: "var(--font-geist-mono, monospace)" }}>{paidBillPayments.length} paid</span>
+                </div>
+                <PaidBillsList payments={paidBillPayments} />
+              </>
+            )}
             {billsList.length === 0 && (
               <p className="text-muted-base text-sm text-center py-8">No bills yet. Add your first one.</p>
             )}
@@ -228,7 +239,7 @@ export default async function BillsPage({
               dayOfMonth={dayOfMonth}
               daysInMonth={daysInMonth}
             />
-            <BillsGroup label="Overdue" bills={toGroupBills(overdueBills)} tone="bad" dayOfMonth={dayOfMonth} />
+            <BillsGroup label="Overdue" bills={toGroupBills(overdueBills)} tone="bad" dayOfMonth={dayOfMonth} monthId={monthData.id} />
           </>
         )}
 
@@ -238,11 +249,18 @@ export default async function BillsPage({
             bills={toGroupBills(recurringBills)}
             tone="neutral"
             dayOfMonth={dayOfMonth}
+            monthId={monthData.id}
           />
         )}
 
         {sub === "paid" && (
-          <BillsGroup label="Paid" bills={toGroupBills(paidBills)} tone="good" dayOfMonth={dayOfMonth} />
+          <>
+            <div style={{ padding: "0 4px 6px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: "#34d399", textTransform: "uppercase" }}>Paid</span>
+              <span style={{ fontSize: 10, color: "#5e5279", fontFamily: "var(--font-geist-mono, monospace)" }}>{paidBillPayments.length} paid</span>
+            </div>
+            <PaidBillsList payments={paidBillPayments} />
+          </>
         )}
 
         {sub === "calendar" && (
