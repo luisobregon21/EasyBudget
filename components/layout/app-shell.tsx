@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { BottomNav } from "./bottom-nav";
 import { Sidebar } from "./sidebar";
+import { DashboardTabs } from "./dashboard-tabs";
 import { AddExpenseDrawer } from "./add-expense-drawer";
 
 type SavedMethod = { id: number; name: string; type: string };
@@ -21,10 +22,13 @@ export function AppShell({ children, paymentMethods, tags }: Props) {
     <>
       <Sidebar onAddExpense={openDrawer} />
       <main
-        className="flex-1 overflow-y-auto pb-24 md:pb-0 px-4 md:px-8 py-6"
+        className="flex-1 overflow-y-auto pb-24 md:pb-0"
         style={{ paddingTop: "max(1.5rem, env(safe-area-inset-top))" }}
       >
-        {children}
+        <DashboardTabs />
+        <div className="px-4 md:px-8 py-6">
+          {children}
+        </div>
       </main>
       <BottomNav onAddExpense={openDrawer} />
       <AddExpenseDrawer

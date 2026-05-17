@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 type NavItem = { href: string; label: string; icon: typeof Home } | null;
 
 const NAV: NavItem[] = [
-  { href: "/",        label: "Overview", icon: Home },
+  { href: "/",        label: "Dashboard", icon: Home },
   { href: "/income",  label: "Income",   icon: Wallet },
   null, // FAB slot
   { href: "/bills",   label: "Bills",    icon: Receipt },

@@ -7,7 +7,6 @@ import { getDailySpend } from "@/lib/actions/trends";
 import { currentYearMonth, calcIncomeTotals, formatMonth } from "@/lib/utils";
 import { daysIntoMonth, projectedTotal, paceStatus } from "@/lib/actions/forecast";
 import { TopBar } from "@/components/layout/top-bar";
-import { TopTabs } from "@/components/layout/top-tabs";
 import { ContextStrip } from "@/components/layout/context-strip";
 import { MonthSwitcher } from "@/components/layout/month-switcher";
 import { HeroAvailableCard } from "@/components/dashboard/hero-available-card";
@@ -16,13 +15,6 @@ import { DailyPaceCard } from "@/components/dashboard/daily-pace-card";
 import { RecentList } from "@/components/dashboard/recent-list";
 import { UpcomingBillsStrip } from "@/components/dashboard/upcoming-bills-strip";
 import { ExpensesTab } from "@/components/overview/expenses-tab";
-
-const TABS = [
-  { id: "today",       label: "Today"       },
-  { id: "allocations", label: "Allocations" },
-  { id: "dailyPace",   label: "Daily pace"  },
-  { id: "expenses",    label: "Expenses"    },
-];
 
 function prevMonthCoords(year: number, month: number) {
   return month === 1 ? { year: year - 1, month: 12 } : { year, month: month - 1 };
@@ -134,7 +126,7 @@ export default async function HomePage({
       <div className="flex items-start justify-between gap-2 px-0 pt-0 pb-3">
         <div className="min-w-0">
           <p className="text-[9px] font-bold tracking-[0.15em] uppercase text-muted-base">easyBudget</p>
-          <h1 className="text-xl font-bold text-foreground tracking-tight">Overview</h1>
+          <h1 className="text-xl font-bold text-foreground tracking-tight">Dashboard</h1>
           <p className="text-xs text-muted-base mt-0.5">Day {dayOfMonth} of {daysInMonth} · {pctThroughMonth}% through month</p>
         </div>
         <MonthSwitcher year={year} month={month} />
@@ -146,10 +138,6 @@ export default async function HomePage({
         income={income}
         billsDueCount={billsDueCount}
       />
-
-      <div className="pt-1">
-        <TopTabs tabs={TABS} />
-      </div>
 
       <div className="pt-4 space-y-4">
         {sub === "today" && (
@@ -171,20 +159,6 @@ export default async function HomePage({
             <UpcomingBillsStrip bills={upcomingBills} dayOfMonth={dayOfMonth} />
             <RecentList expenses={recentForList} />
           </>
-        )}
-
-        {sub === "allocations" && (
-          <div className="py-2">
-            <AllocationGrid buckets={buckets} />
-          </div>
-        )}
-
-        {sub === "dailyPace" && (
-          <DailyPaceCard
-            dailySpend={dailySpend}
-            daysInMonth={daysInMonth}
-            dayOfMonth={dayOfMonth}
-          />
         )}
 
         {sub === "expenses" && (

@@ -5,7 +5,7 @@ import { Home, BarChart2, Receipt, Wallet, CreditCard, Tag, Plane, Target, Setti
 import { cn } from "@/lib/utils";
 
 const TOP_NAV = [
-  { href: "/",        label: "Overview", icon: Home },
+  { href: "/",        label: "Dashboard", icon: Home },
   { href: "/income",  label: "Income",   icon: Wallet },
   { href: "/bills",   label: "Bills",    icon: Receipt },
   { href: "/trends",  label: "Trends",   icon: BarChart2 },
