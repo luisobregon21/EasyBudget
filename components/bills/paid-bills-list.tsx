@@ -18,17 +18,27 @@ type Payment = {
 
 interface Props {
   payments: Payment[];
+  /** When true, render dates as "MMM D, YYYY" (activity-log style across months) */
+  showMonth?: boolean;
 }
 
 const fmtDec = (n: number) =>
   "$" + n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-function formatDate(dateStr: string) {
-  const [, m, d] = dateStr.split("-");
-  return `${parseInt(m)}/${parseInt(d)}`;
+const MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+function formatDate(dateStr: string, withYear = false) {
+  const [y, m, d] = dateStr.split("-");
+  const mAbbr = MONTH_ABBR[parseInt(m) - 1];
+  const day = parseInt(d);
+  if (withYear) {
+    const currentYear = new Date().getFullYear();
+    return parseInt(y) === currentYear ? `${mAbbr} ${day}` : `${mAbbr} ${day}, ${y}`;
+  }
+  return `${parseInt(m)}/${day}`;
 }
 
-function PaymentRow({ payment }: { payment: Payment }) {
+function PaymentRow({ payment, showMonth = false }: { payment: Payment; showMonth?: boolean }) {
   const [pending, startTransition] = useTransition();
 
   function handleDelete() {
@@ -75,7 +85,7 @@ function PaymentRow({ payment }: { payment: Payment }) {
             gap: 6,
           }}
         >
-          <span>paid {formatDate(payment.date)}</span>
+          <span>paid {formatDate(payment.date, showMonth)}</span>
           {payment.paidLate && (
             <span
               style={{
@@ -137,7 +147,7 @@ function PaymentRow({ payment }: { payment: Payment }) {
   );
 }
 
-export function PaidBillsList({ payments }: Props) {
+export function PaidBillsList({ payments, showMonth = false }: Props) {
   if (!payments.length) {
     return (
       <div
@@ -169,7 +179,7 @@ export function PaidBillsList({ payments }: Props) {
             borderTop: i ? "1px solid rgba(167,139,250,0.13)" : "none",
           }}
         >
-          <PaymentRow payment={p} />
+          <PaymentRow payment={p} showMonth={showMonth} />
         </div>
       ))}
     </div>

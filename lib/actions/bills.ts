@@ -1,6 +1,6 @@
 "use server";
 import { getDb, bills, billPayments, creditCards } from "@/lib/db";
-import { and, eq, asc } from "drizzle-orm";
+import { and, eq, asc, desc } from "drizzle-orm";
 import { requireSession } from "@/lib/auth/session";
 import { revalidatePath } from "next/cache";
 
@@ -222,6 +222,30 @@ export async function getBillPaymentsForMonth(monthId: number) {
     .innerJoin(bills, eq(billPayments.billId, bills.id))
     .where(and(eq(billPayments.monthId, monthId), eq(billPayments.userId, user.id!)))
     .orderBy(asc(billPayments.date));
+  return rows;
+}
+
+/** Activity-log style: all paid bills across all months, most recent first. */
+export async function getBillPaymentHistory(limit = 50) {
+  const user = await requireSession();
+  const db = getDb();
+  const rows = await db
+    .select({
+      id:       billPayments.id,
+      billId:   billPayments.billId,
+      billName: bills.name,
+      billType: bills.type,
+      amount:   billPayments.amount,
+      date:     billPayments.date,
+      paidLate: billPayments.paidLate,
+      dueDay:   bills.dueDay,
+      note:     billPayments.note,
+    })
+    .from(billPayments)
+    .innerJoin(bills, eq(billPayments.billId, bills.id))
+    .where(eq(billPayments.userId, user.id!))
+    .orderBy(desc(billPayments.date))
+    .limit(limit);
   return rows;
 }
 

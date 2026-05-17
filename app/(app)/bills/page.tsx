@@ -1,4 +1,4 @@
-import { getUserBills, getUpcomingBills, getBillPaymentsForMonth } from "@/lib/actions/bills";
+import { getUserBills, getUpcomingBills, getBillPaymentsForMonth, getBillPaymentHistory } from "@/lib/actions/bills";
 import { getOrCreateMonth, getMonth } from "@/lib/actions/months";
 import { getIncomeEntries, cleanupBackfilledPastEntries } from "@/lib/actions/income";
 import { getExpensesForMonth } from "@/lib/actions/expenses";
@@ -99,13 +99,14 @@ export default async function BillsPage({
   const last      = prevMonthCoords(year, month);
   const lastMonthData = await getMonth(last.year, last.month);
 
-  const [billsList, upcomingBillsWeek, incomeEntries, expenseRows, lastMonthExpenses, paidBillPayments] = await Promise.all([
+  const [billsList, upcomingBillsWeek, incomeEntries, expenseRows, lastMonthExpenses, paidBillPayments, paidBillHistory] = await Promise.all([
     getUserBills(),
     getUpcomingBills(7),
     getIncomeEntries(monthData.id),
     getExpensesForMonth(monthData.id),
     lastMonthData ? getExpensesForMonth(lastMonthData.id) : Promise.resolve([]),
     getBillPaymentsForMonth(monthData.id),
+    getBillPaymentHistory(50),
   ]);
 
   const { budgetTotal } = calcIncomeTotals(incomeEntries);
@@ -256,10 +257,13 @@ export default async function BillsPage({
         {sub === "paid" && (
           <>
             <div style={{ padding: "0 4px 6px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: "#34d399", textTransform: "uppercase" }}>Paid</span>
-              <span style={{ fontSize: 10, color: "#5e5279", fontFamily: "var(--font-geist-mono, monospace)" }}>{paidBillPayments.length} paid</span>
+              <div>
+                <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: "#34d399", textTransform: "uppercase" }}>Payment history</span>
+                <p style={{ fontSize: 11, color: "#8a7da8", marginTop: 2 }}>All paid bills across months, most recent first</p>
+              </div>
+              <span style={{ fontSize: 10, color: "#5e5279", fontFamily: "var(--font-geist-mono, monospace)" }}>{paidBillHistory.length} paid</span>
             </div>
-            <PaidBillsList payments={paidBillPayments} />
+            <PaidBillsList payments={paidBillHistory} showMonth />
           </>
         )}
 
