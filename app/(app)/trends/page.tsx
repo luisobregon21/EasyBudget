@@ -17,6 +17,7 @@ import { ChartWithSwitcher } from "@/components/trends/chart-with-switcher";
 import { CategoryTickerTable } from "@/components/trends/category-ticker-table";
 import { CategoryViewToggle } from "@/components/trends/category-view-toggle";
 import { BiggestChangesCard } from "@/components/trends/biggest-changes-card";
+import { BucketPulseBars } from "@/components/trends/bucket-pulse-bars";
 
 const VALID_RANGES: Range[] = ["6mo", "12mo", "ytd"];
 const MONTH_LABELS       = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -131,6 +132,10 @@ export default async function TrendsPage({
         {/* ── Categories tab ────────────────────────── */}
         {sub === "categories" && (
           <>
+            <section className="space-y-2">
+              <h3 className="text-foreground font-semibold text-sm">By Bucket</h3>
+              <BucketPulseBars buckets={byBucket} />
+            </section>
             <section className="space-y-2">
               <div className="flex items-center justify-between">
                 <h3 className="text-foreground font-semibold text-sm">All categories</h3>
