@@ -1,5 +1,5 @@
 "use server";
-import { getDb, bills, creditCards } from "@/lib/db";
+import { getDb, bills, billPayments, creditCards } from "@/lib/db";
 import { and, eq, asc } from "drizzle-orm";
 import { requireSession } from "@/lib/auth/session";
 import { revalidatePath } from "next/cache";
@@ -160,5 +160,80 @@ export async function deleteBill(billId: number) {
     return { success: true, message: "Bill removed" };
   } catch (e) {
     return { success: false, message: e instanceof Error ? e.message : "Failed to remove bill" };
+  }
+}
+
+// ── Bill payments ─────────────────────────────────────────────────────────────
+
+export async function recordBillPayment(
+  billId: number,
+  prevState: unknown,
+  formData: FormData,
+): Promise<{ success: boolean; message: string }> {
+  try {
+    const user = await requireSession();
+    const db = getDb();
+
+    const bill = await getBillById(billId);
+    if (!bill) return { success: false, message: "Bill not found" };
+
+    const monthId = parseInt(formData.get("monthId") as string);
+    const amountRaw = formData.get("amount") as string;
+    const amount = amountRaw ? parseFloat(amountRaw) : bill.amount;
+    const dateStr = (formData.get("date") as string) || new Date().toISOString().split("T")[0];
+    const note = (formData.get("note") as string)?.trim() || null;
+
+    // paidLate: day of payment > bill's dueDay for that month
+    const payDay = parseInt(dateStr.split("-")[2], 10);
+    const paidLate = payDay > bill.dueDay;
+
+    await db.insert(billPayments).values({
+      userId: user.id!,
+      billId,
+      monthId,
+      amount,
+      date: dateStr,
+      paidLate,
+      note,
+    });
+
+    revalidatePath("/bills");
+    return { success: true, message: `${bill.name} marked as paid` };
+  } catch (e) {
+    return { success: false, message: e instanceof Error ? e.message : "Failed to record payment" };
+  }
+}
+
+export async function getBillPaymentsForMonth(monthId: number) {
+  const user = await requireSession();
+  const db = getDb();
+  const rows = await db
+    .select({
+      id:       billPayments.id,
+      billId:   billPayments.billId,
+      billName: bills.name,
+      amount:   billPayments.amount,
+      date:     billPayments.date,
+      paidLate: billPayments.paidLate,
+      dueDay:   bills.dueDay,
+      note:     billPayments.note,
+    })
+    .from(billPayments)
+    .innerJoin(bills, eq(billPayments.billId, bills.id))
+    .where(and(eq(billPayments.monthId, monthId), eq(billPayments.userId, user.id!)))
+    .orderBy(asc(billPayments.date));
+  return rows;
+}
+
+export async function deleteBillPayment(paymentId: number): Promise<{ success: boolean; message: string }> {
+  try {
+    const user = await requireSession();
+    const db = getDb();
+    await db.delete(billPayments)
+      .where(and(eq(billPayments.id, paymentId), eq(billPayments.userId, user.id!)));
+    revalidatePath("/bills");
+    return { success: true, message: "Payment removed" };
+  } catch (e) {
+    return { success: false, message: e instanceof Error ? e.message : "Failed to remove payment" };
   }
 }
