@@ -111,12 +111,13 @@ export default async function HomePage({
 
   // map expenses to ExpensesTab shape
   const expensesForTab = recentExpenses.map((e) => ({
-    id:       e.id,
-    name:     e.description,
-    tagName:  e.tagName,
-    category: null,
-    amount:   e.amountUsd ?? e.amount,
-    date:     e.date,
+    id:            e.id,
+    name:          e.description,
+    tagName:       e.tagName,
+    category:      null,
+    amount:        e.amountUsd ?? e.amount,
+    date:          e.date,
+    paymentMethod: e.paymentMethod,
   }));
 
   const monthLabel = formatMonth(year, month);
