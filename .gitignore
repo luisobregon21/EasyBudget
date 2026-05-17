@@ -49,6 +49,7 @@ next-env.d.ts
 # Source logo files (use public/icons/* and app/favicon.ico for runtime)
 /eb-logo.png
 /eb-logo.ico
+/favicon_io/
 
 # Design mockups / preview routes — localhost-only, never ship to prod
 /app/(app)/preview/
