@@ -1,6 +1,6 @@
 "use server";
 import { getDb, months, expenses, tags, trips, incomeEntries } from "@/lib/db";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, gte, lte, inArray, sql } from "drizzle-orm";
 import { requireSession } from "@/lib/auth/session";
 
 export type Range = "6mo" | "12mo" | "ytd";
@@ -437,4 +437,94 @@ export async function getHeadlineInsight(
     return `Spending steady. You've used ${targetPct}% of your monthly income.`;
   }
   return `${monthLabel} is just getting started. Add income and expenses to see trends.`;
+}
+
+export type CompareUnit = "day" | "month" | "year";
+
+export type ComparisonResult = {
+  unit: CompareUnit;
+  currentLabel: string;
+  previousLabel: string;
+  currentSpent: number;
+  previousSpent: number;
+  deltaPct: number;
+};
+
+async function sumExpensesByDateRange(
+  userId: string,
+  from: string,
+  to: string,
+): Promise<number> {
+  const db = getDb();
+  const [row] = await db
+    .select({ total: sql<number>`coalesce(sum(${expenses.amountUsd}), 0)` })
+    .from(expenses)
+    .where(and(eq(expenses.userId, userId), gte(expenses.date, from), lte(expenses.date, to)));
+  return Number(row?.total ?? 0);
+}
+
+export async function getComparison(unit: CompareUnit): Promise<ComparisonResult> {
+  const user = await requireSession();
+  const now = new Date();
+  const todayStr = now.toISOString().slice(0, 10);
+
+  let currentFrom: string;
+  let currentTo: string;
+  let previousFrom: string;
+  let previousTo: string;
+  let currentLabel: string;
+  let previousLabel: string;
+
+  if (unit === "day") {
+    currentFrom = todayStr;
+    currentTo   = todayStr;
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().slice(0, 10);
+    previousFrom = yesterdayStr;
+    previousTo   = yesterdayStr;
+    currentLabel  = "Today";
+    previousLabel = "Yesterday";
+  } else if (unit === "month") {
+    const y = now.getFullYear();
+    const m = now.getMonth() + 1;
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const daysInCurrentMonth = new Date(y, m, 0).getDate();
+    currentFrom = `${y}-${pad(m)}-01`;
+    currentTo   = `${y}-${pad(m)}-${pad(daysInCurrentMonth)}`;
+    const prevM = m === 1 ? 12 : m - 1;
+    const prevY = m === 1 ? y - 1 : y;
+    const daysInPrevMonth = new Date(prevY, prevM, 0).getDate();
+    previousFrom = `${prevY}-${pad(prevM)}-01`;
+    previousTo   = `${prevY}-${pad(prevM)}-${pad(daysInPrevMonth)}`;
+    const MONTH_LABELS_LOCAL = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    currentLabel  = `${MONTH_LABELS_LOCAL[m - 1]} ${y}`;
+    previousLabel = `${MONTH_LABELS_LOCAL[prevM - 1]} ${prevY}`;
+  } else {
+    // year: YTD current year vs same range in prior year
+    const y = now.getFullYear();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const mm  = pad(now.getMonth() + 1);
+    const dd  = pad(now.getDate());
+    currentFrom  = `${y}-01-01`;
+    currentTo    = `${y}-${mm}-${dd}`;
+    previousFrom = `${y - 1}-01-01`;
+    previousTo   = `${y - 1}-${mm}-${dd}`;
+    currentLabel  = `${y} YTD`;
+    previousLabel = `${y - 1} YTD`;
+  }
+
+  const [currentSpent, previousSpent] = await Promise.all([
+    sumExpensesByDateRange(user.id!, currentFrom, currentTo),
+    sumExpensesByDateRange(user.id!, previousFrom, previousTo),
+  ]);
+
+  let deltaPct = 0;
+  if (previousSpent > 0) {
+    deltaPct = Math.round(((currentSpent - previousSpent) / previousSpent) * 100);
+  } else if (currentSpent > 0) {
+    deltaPct = 100;
+  }
+
+  return { unit, currentLabel, previousLabel, currentSpent, previousSpent, deltaPct };
 }
