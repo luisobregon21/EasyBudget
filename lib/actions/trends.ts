@@ -456,15 +456,22 @@ export type ComparisonResult = {
   currentSpent: number;
   previousSpent: number;
   deltaPct: number;
-  // Income
-  currentIncome: number;
-  previousIncome: number;
-  incomeDeltaPct: number;
-  // Net = income - spent
-  currentNet: number;
-  previousNet: number;
-  netDeltaPct: number;
-  // By bucket
+  // Income — split into arrived/expected for current; previous shows totals only
+  currentArrived: number;
+  currentExpected: number;
+  previousArrived: number;
+  previousExpected: number;       // usually 0 for past periods
+  // Totals (arrived + expected) for delta calc
+  currentIncome: number;          // = currentArrived + currentExpected
+  previousIncome: number;         // = previousArrived + previousExpected
+  incomeDeltaPct: number;         // computed on currentIncome vs previousIncome
+  // Net
+  currentNetNow: number;          // currentArrived - currentSpent
+  currentNetForecast: number;     // (currentArrived + currentExpected) - currentProjected
+  currentProjected: number;       // exposed so the page can show it if needed
+  previousNet: number;            // previousArrived - previousSpent (no forecast for past)
+  netNowDeltaPct: number;         // currentNetNow vs previousNet
+  // By bucket — UNCHANGED
   buckets: BucketComparison[];
 };
 
@@ -481,22 +488,50 @@ async function sumExpensesByDateRange(
   return Number(row?.total ?? 0);
 }
 
-async function sumIncomeByDateRange(
+async function sumIncomeByStatusAndDateRange(
   userId: string,
   from: string,
   to: string,
-): Promise<number> {
+): Promise<{ arrived: number; expected: number }> {
   const db = getDb();
-  const [row] = await db
-    .select({ total: sql<number>`coalesce(sum(${incomeEntries.amount}), 0)` })
+  const rows = await db
+    .select({
+      status: incomeEntries.status,
+      total:  sql<number>`coalesce(sum(${incomeEntries.amount}), 0)`,
+    })
     .from(incomeEntries)
     .where(and(
       eq(incomeEntries.userId, userId),
       gte(incomeEntries.expectedDate, from),
       lte(incomeEntries.expectedDate, to),
       inArray(incomeEntries.status, ["arrived", "expected"]),
-    ));
-  return Number(row?.total ?? 0);
+    ))
+    .groupBy(incomeEntries.status);
+  let arrived = 0, expected = 0;
+  for (const r of rows) {
+    if (r.status === "arrived") arrived = Number(r.total);
+    else if (r.status === "expected") expected = Number(r.total);
+  }
+  return { arrived, expected };
+}
+
+function projectionFor(unit: CompareUnit, currentSpent: number): number {
+  const now = new Date();
+  if (unit === "day") {
+    // No projection within a single day — return spent as-is.
+    return currentSpent;
+  }
+  if (unit === "month") {
+    const dayOfMonth = now.getDate();
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    if (dayOfMonth <= 0) return currentSpent;
+    return Math.round((currentSpent / dayOfMonth) * daysInMonth);
+  }
+  // year
+  const start = new Date(now.getFullYear(), 0, 1);
+  const daysIntoYear = Math.floor((now.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+  if (daysIntoYear <= 0) return currentSpent;
+  return Math.round((currentSpent / daysIntoYear) * 365);
 }
 
 async function sumSpendByBucketDateRange(
@@ -580,22 +615,38 @@ export async function getComparison(unit: CompareUnit): Promise<ComparisonResult
     previousLabel = `${y - 1} YTD`;
   }
 
-  const [currentSpent, previousSpent, currentIncome, previousIncome, currentBuckets, previousBuckets] =
+  const [currentSpent, previousSpent, currentIncomeByStatus, previousIncomeByStatus, currentBuckets, previousBuckets] =
     await Promise.all([
       sumExpensesByDateRange(user.id!, currentFrom, currentTo),
       sumExpensesByDateRange(user.id!, previousFrom, previousTo),
-      sumIncomeByDateRange(user.id!, currentFrom, currentTo),
-      sumIncomeByDateRange(user.id!, previousFrom, previousTo),
+      sumIncomeByStatusAndDateRange(user.id!, currentFrom, currentTo),
+      sumIncomeByStatusAndDateRange(user.id!, previousFrom, previousTo),
       sumSpendByBucketDateRange(user.id!, currentFrom, currentTo),
       sumSpendByBucketDateRange(user.id!, previousFrom, previousTo),
     ]);
 
-  const deltaPct = calcDeltaPct(currentSpent, previousSpent);
-  const incomeDeltaPct = calcDeltaPct(currentIncome, previousIncome);
+  const currentArrived  = currentIncomeByStatus.arrived;
+  const currentExpected = currentIncomeByStatus.expected;
+  const previousArrived  = previousIncomeByStatus.arrived;
+  const previousExpected = previousIncomeByStatus.expected;
 
-  const currentNet  = currentIncome - currentSpent;
-  const previousNet = previousIncome - previousSpent;
-  const netDeltaPct = calcDeltaPct(currentNet, previousNet);
+  const currentProjected = projectionFor(unit, currentSpent);
+  const currentIncome = currentArrived + currentExpected;
+  const previousIncome = previousArrived + previousExpected;
+  const currentNetNow      = currentArrived - currentSpent;
+  const currentNetForecast = (currentArrived + currentExpected) - currentProjected;
+  const previousNet        = previousArrived - previousSpent;
+
+  const pctOrZero = (current: number, previous: number) => {
+    if (previous === 0 && current > 0) return 100;
+    if (previous === 0 && current < 0) return -100;
+    if (previous === 0) return 0;
+    return Math.round(((current - previous) / Math.abs(previous)) * 100);
+  };
+
+  const deltaPct       = calcDeltaPct(currentSpent, previousSpent);
+  const incomeDeltaPct = pctOrZero(currentIncome, previousIncome);
+  const netNowDeltaPct = pctOrZero(currentNetNow, previousNet);
 
   const buckets: BucketComparison[] = (["savings", "bills", "wants"] as const).map((bucket) => ({
     bucket,
@@ -611,12 +662,18 @@ export async function getComparison(unit: CompareUnit): Promise<ComparisonResult
     currentSpent,
     previousSpent,
     deltaPct,
+    currentArrived,
+    currentExpected,
+    previousArrived,
+    previousExpected,
     currentIncome,
     previousIncome,
     incomeDeltaPct,
-    currentNet,
+    currentNetNow,
+    currentNetForecast,
+    currentProjected,
     previousNet,
-    netDeltaPct,
+    netNowDeltaPct,
     buckets,
   };
 }
