@@ -183,7 +183,9 @@ export function BillsGroup({ label, bills, tone, emptyHide = false, dayOfMonth, 
                 {fmtDec(b.amount)}
               </div>
 
-              {!isPaid && monthId !== undefined && (
+              {/* Mark Paid only on bills that are actually due (overdue + this week);
+                  upcoming/later bills aren't payable yet — they haven't reached their due date. */}
+              {!isPaid && monthId !== undefined && (tone === "bad" || tone === "warn") && (
                 <MarkPaidButton billId={b.id} monthId={monthId} />
               )}
             </div>
