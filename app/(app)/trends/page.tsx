@@ -1,44 +1,46 @@
 import { getOrCreateMonth, getMonth } from "@/lib/actions/months";
 import { getExpensesForMonth } from "@/lib/actions/expenses";
 import { getIncomeEntries } from "@/lib/actions/income";
+import { getUpcomingBills } from "@/lib/actions/bills";
 import {
   getMonthlyTrend, getExpensesByBucket, getTripSpend,
   getCategoryTrend, getDailySpend, getHeadlineInsight,
   type Range, type CategoryView,
 } from "@/lib/actions/trends";
 import { currentYearMonth, calcIncomeTotals } from "@/lib/utils";
+import { daysIntoMonth, projectedTotal } from "@/lib/actions/forecast";
+import { ContextStrip } from "@/components/layout/context-strip";
+import { TopTabs } from "@/components/layout/top-tabs";
 import { MonthSwitcher } from "@/components/layout/month-switcher";
-import { HeroKpis } from "@/components/trends/hero-kpis";
-import { Tabs } from "@/components/trends/tabs";
-import { RangeToggle } from "@/components/trends/range-toggle";
-import { MonthlyAreaChart } from "@/components/trends/monthly-area-chart";
-import { HeadlineCard } from "@/components/trends/headline-card";
-import { SpendTickerCard } from "@/components/trends/spend-ticker-card";
+import { InsightCard } from "@/components/trends/insight-card";
+import { ChartWithSwitcher } from "@/components/trends/chart-with-switcher";
 import { CategoryTickerTable } from "@/components/trends/category-ticker-table";
 import { CategoryViewToggle } from "@/components/trends/category-view-toggle";
 import { BiggestChangesCard } from "@/components/trends/biggest-changes-card";
-import { BucketPulseBars } from "@/components/trends/bucket-pulse-bars";
-import { DailyHeatmap } from "@/components/trends/daily-heatmap";
-import { TripsList } from "@/components/trends/trips-list";
 
 const VALID_RANGES: Range[] = ["6mo", "12mo", "ytd"];
-const MONTH_LABELS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-const MONTH_LABELS_SHORT = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
+const MONTH_LABELS       = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
-function prevMonth(year: number, month: number): { year: number; month: number } {
-  if (month === 1) return { year: year - 1, month: 12 };
-  return { year, month: month - 1 };
+const TABS = [
+  { id: "insights",   label: "Insights"   },
+  { id: "categories", label: "Categories" },
+  { id: "compare",    label: "Compare"    },
+];
+
+function prevMonthCoords(year: number, month: number) {
+  return month === 1 ? { year: year - 1, month: 12 } : { year, month: month - 1 };
 }
 
 export default async function TrendsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ year?: string; month?: string; range?: string; categoryView?: string }>;
+  searchParams: Promise<{ year?: string; month?: string; range?: string; categoryView?: string; sub?: string }>;
 }) {
   const params = await searchParams;
   const def    = currentYearMonth();
   const year   = parseInt(params.year  ?? String(def.year));
   const month  = parseInt(params.month ?? String(def.month));
+  const sub    = params.sub ?? "insights";
   const range: Range = (VALID_RANGES.includes(params.range as Range) ? params.range : "6mo") as Range;
 
   const categoryView: CategoryView =
@@ -51,86 +53,84 @@ export default async function TrendsPage({
   const effectiveView: CategoryView = isFutureMonth ? "monthly" : categoryView;
 
   const monthData = await getOrCreateMonth(year, month);
-  const last = prevMonth(year, month);
+  const last      = prevMonthCoords(year, month);
   const lastMonthData = await getMonth(last.year, last.month);
 
   const incomeEntries = await getIncomeEntries(monthData.id);
   const { budgetTotal } = calcIncomeTotals(incomeEntries);
-  const income = budgetTotal > 0 ? budgetTotal : monthData.income;
+  const income = budgetTotal > 0 ? budgetTotal : (monthData.income ?? 0);
 
-  const [expenseList, byBucket, byTrip, trend, categoryTrend, dailySpend, lastMonthExpenses] = await Promise.all([
+  const [expenseList, byBucket, trend, categoryTrend, lastMonthExpenses, upcomingBills] = await Promise.all([
     getExpensesForMonth(monthData.id),
     getExpensesByBucket(monthData.id, income),
-    getTripSpend(monthData.id),
     getMonthlyTrend(range),
     getCategoryTrend(range, year, month, effectiveView),
-    getDailySpend(monthData.id, year, month),
     lastMonthData ? getExpensesForMonth(lastMonthData.id) : Promise.resolve([]),
+    getUpcomingBills(7),
   ]);
 
   const totalSpent     = expenseList.reduce((s, e) => s + e.amountUsd, 0);
   const lastMonthSpent = lastMonthExpenses.reduce((s, e) => s + e.amountUsd, 0);
-  const savings        = Math.max(0, income - totalSpent);
-  const targetSpendPct = monthData.billsPct + monthData.wantsPct;
+  const billsDueCount  = upcomingBills.length;
+
+  const { day: dayOfMonth, total: daysInMonth } = daysIntoMonth(now);
+  const projected = projectedTotal(totalSpent, dayOfMonth, daysInMonth);
 
   const headline = await getHeadlineInsight(
     monthData.id, income, byBucket, totalSpent, lastMonthSpent,
     MONTH_LABELS[month - 1], MONTH_LABELS[last.month - 1],
   );
-  const sparkline = trend.map((t) => t.spent);
+
+  // Determine headline tone from text content
+  const headlineTone: "good" | "bad" =
+    headline.toLowerCase().includes("down") || headline.toLowerCase().includes("on track")
+      ? "good"
+      : "bad";
 
   return (
-    <div className="space-y-5 max-w-3xl mx-auto">
-      <div className="flex justify-between items-start">
-        <div>
-          <h2 className="text-foreground text-xl font-bold">Trends</h2>
-          <p className="text-muted-base text-sm">Spending patterns and history</p>
+    <div className="space-y-4 max-w-3xl mx-auto">
+      {/* header */}
+      <div className="flex items-start justify-between gap-2 pb-1">
+        <div className="min-w-0">
+          <p className="text-[9px] font-bold tracking-[0.15em] uppercase text-muted-base">easyBudget</p>
+          <h1 className="text-xl font-bold text-foreground tracking-tight">Trends</h1>
+          <p className="text-xs text-muted-base mt-0.5">Spending patterns and history</p>
         </div>
         <MonthSwitcher year={year} month={month} />
       </div>
 
-      <HeroKpis spent={totalSpent} income={income} savings={savings} targetSpendPct={targetSpendPct} />
+      <ContextStrip
+        spent={totalSpent}
+        projected={projected}
+        income={income}
+        billsDueCount={billsDueCount}
+      />
 
-      <Tabs
-        overview={
-          <div className="space-y-5">
-            <HeadlineCard text={headline} />
-            <SpendTickerCard
-              monthLabel={MONTH_LABELS_SHORT[month - 1]}
-              lastMonthLabel={MONTH_LABELS[last.month - 1]}
-              spent={totalSpent}
-              lastMonthSpent={lastMonthSpent}
-              sparkline={sparkline}
-            />
+      <TopTabs tabs={TABS} />
+
+      <div className="pt-2 space-y-5">
+        {/* ── Insights tab ─────────────────────────── */}
+        {sub === "insights" && (
+          <>
+            <InsightCard text={headline} tone={headlineTone} />
+
             <section className="space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="text-foreground font-semibold text-sm">Income vs Spend over time</h3>
-                <RangeToggle current={range} />
               </div>
-              <div className="rounded-2xl bg-white/[0.03] border border-accent-purple/10 p-4">
-                <MonthlyAreaChart data={trend} />
-              </div>
+              <ChartWithSwitcher data={trend} projected={!isFutureMonth ? projected : undefined} />
             </section>
-            <section className="space-y-3">
-              <h3 className="text-foreground font-semibold text-sm">Daily spending — {MONTH_LABELS[month - 1]}</h3>
-              <DailyHeatmap points={dailySpend} year={year} month={month} />
-            </section>
+
             <section className="space-y-2">
-              <div className="flex items-center justify-between">
-                <h3 className="text-foreground font-semibold text-sm">Top categories</h3>
-                {!isFutureMonth && <CategoryViewToggle current={effectiveView} />}
-              </div>
+              <h3 className="text-foreground font-semibold text-sm">Top categories</h3>
               <CategoryTickerTable rows={categoryTrend} limit={5} />
             </section>
-          </div>
-        }
-        categories={
-          <div className="space-y-5">
-            <BiggestChangesCard rows={categoryTrend} />
-            <section className="space-y-2">
-              <h3 className="text-foreground font-semibold text-sm">By Bucket</h3>
-              <BucketPulseBars buckets={byBucket} />
-            </section>
+          </>
+        )}
+
+        {/* ── Categories tab ────────────────────────── */}
+        {sub === "categories" && (
+          <>
             <section className="space-y-2">
               <div className="flex items-center justify-between">
                 <h3 className="text-foreground font-semibold text-sm">All categories</h3>
@@ -138,17 +138,30 @@ export default async function TrendsPage({
               </div>
               <CategoryTickerTable rows={categoryTrend} />
             </section>
-          </div>
-        }
-        trips={
-          <div className="space-y-5">
-            <section className="space-y-2">
-              <h3 className="text-foreground font-semibold text-sm">Active trips this month</h3>
-              <TripsList trips={byTrip} />
-            </section>
-          </div>
-        }
-      />
+          </>
+        )}
+
+        {/* ── Compare tab ───────────────────────────── */}
+        {sub === "compare" && (
+          <>
+            <div
+              style={{
+                background: "#181028",
+                border: "1px solid rgba(167,139,250,0.13)",
+                borderRadius: 10,
+                padding: "10px 14px",
+                fontSize: 11,
+                color: "#8a7da8",
+                fontFamily: "var(--font-geist-mono, monospace)",
+                marginBottom: 4,
+              }}
+            >
+              vs {MONTH_LABELS[last.month - 1]} {last.year}
+            </div>
+            <BiggestChangesCard rows={categoryTrend} />
+          </>
+        )}
+      </div>
     </div>
   );
 }
