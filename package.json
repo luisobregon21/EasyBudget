@@ -2,13 +2,22 @@
   "name": "easybudget",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@10.33.0",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
   },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "sharp",
+      "unrs-resolver"
+    ]
+  },
   "dependencies": {
+    "@auth/core": "0.41.2",
     "@auth/drizzle-adapter": "^1.11.2",
     "@base-ui/react": "^1.4.1",
     "@hookform/resolvers": "^5.2.2",

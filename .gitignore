@@ -10,6 +10,12 @@
 !.yarn/releases
 !.yarn/versions
 
+# Use pnpm only — keep other PM lockfiles out
+package-lock.json
+yarn.lock
+bun.lockb
+bun.lock
+
 # testing
 /coverage
 
