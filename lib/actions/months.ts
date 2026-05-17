@@ -2,7 +2,7 @@
 import { getDb, months, userSettings } from "@/lib/db";
 import { and, eq } from "drizzle-orm";
 import { requireSession } from "@/lib/auth/session";
-import { generateMonthIncomeEntries } from "@/lib/actions/income";
+import { generateMonthIncomeEntries, rolloverExpectedEntries } from "@/lib/actions/income";
 
 export async function getMonth(year: number, month: number) {
   const user = await requireSession();
@@ -51,6 +51,17 @@ export async function getOrCreateMonth(year: number, month: number) {
   }
 
   await generateMonthIncomeEntries(row.id, year, month);
+
+  // Rollover unfulfilled one_time expected entries from the previous month.
+  // Only runs on first creation (we're in the created[0] branch).
+  const prevCoords = month === 1 ? { y: year - 1, m: 12 } : { y: year, m: month - 1 };
+  const [prevRow] = await db.select({ id: months.id }).from(months)
+    .where(and(eq(months.userId, userId), eq(months.year, prevCoords.y), eq(months.month, prevCoords.m)))
+    .limit(1);
+  if (prevRow) {
+    await rolloverExpectedEntries(prevRow.id, row.id, year, month);
+  }
+
   return row;
 }
 

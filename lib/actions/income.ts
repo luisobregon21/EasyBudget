@@ -41,7 +41,7 @@ export async function cleanupBackfilledPastEntries(): Promise<{ removed: number 
 }
 
 /** Recompute month.income from arrived+expected income entries. */
-async function recomputeMonthIncome(userId: string, monthId: number) {
+export async function recomputeMonthIncome(userId: string, monthId: number) {
   const db = getDb();
   const [row] = await db.select({
     total: sql<number>`coalesce(sum(${incomeEntries.amount}), 0)`,
@@ -253,4 +253,62 @@ export async function deleteIncomeEntry(entryId: number): Promise<{ success: boo
   } catch (e) {
     return { success: false, message: e instanceof Error ? e.message : "Failed to remove income" };
   }
+}
+
+/**
+ * Rollover one_time "expected" income entries from prevMonth into currentMonth.
+ * Called once when getOrCreateMonth creates a brand-new month row.
+ * Skips entries that have a sourceId (recurring — already handled by generateMonthIncomeEntries).
+ * Deduplicates by (name, amount) to avoid double-rollover on repeat calls.
+ */
+export async function rolloverExpectedEntries(
+  prevMonthId: number,
+  currentMonthId: number,
+  currentYear: number,
+  currentMonth: number,
+) {
+  const user = await requireSession();
+  const db = getDb();
+
+  const prevExpected = await db.select().from(incomeEntries)
+    .where(and(
+      eq(incomeEntries.userId, user.id!),
+      eq(incomeEntries.monthId, prevMonthId),
+      eq(incomeEntries.status, "expected"),
+    ));
+
+  if (prevExpected.length === 0) return;
+
+  const newDate = `${currentYear}-${String(currentMonth).padStart(2, "0")}-01`;
+  let inserted = false;
+
+  for (const entry of prevExpected) {
+    // Only rollover one_time entries (sourceId === null).
+    // Recurring sources are already handled by generateMonthIncomeEntries.
+    if (entry.sourceId !== null) continue;
+
+    // Dedup: skip if a matching entry already exists in the current month.
+    const existing = await db.select().from(incomeEntries)
+      .where(and(
+        eq(incomeEntries.userId, user.id!),
+        eq(incomeEntries.monthId, currentMonthId),
+        eq(incomeEntries.name, entry.name),
+        eq(incomeEntries.amount, entry.amount),
+      ))
+      .limit(1);
+    if (existing.length > 0) continue;
+
+    await db.insert(incomeEntries).values({
+      userId: user.id!,
+      sourceId: null,
+      monthId: currentMonthId,
+      name: entry.name,
+      amount: entry.amount,
+      status: "expected",
+      expectedDate: newDate,
+    });
+    inserted = true;
+  }
+
+  if (inserted) await recomputeMonthIncome(user.id!, currentMonthId);
 }
