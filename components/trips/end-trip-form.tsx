@@ -1,8 +1,8 @@
 "use client";
 import { useActionState, useEffect, useRef, useState } from "react";
 import { endTrip } from "@/lib/actions/trips";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { DateField, parseIso } from "@/components/ui/date-field";
 import { toast } from "sonner";
 import { FlagTriangleLeft } from "lucide-react";
 
@@ -47,12 +47,11 @@ export function EndTripForm({ tripId, startDate }: Props) {
       <form action={formAction} className="flex items-end gap-3">
         <div className="flex-1 space-y-1">
           <label className="text-muted-base text-[10px] uppercase tracking-widest">End Date</label>
-          <Input
+          <DateField
             name="endDate"
-            type="date"
-            min={startDate}
             required
-            className="bg-bg-deep border-accent-purple/20 text-foreground"
+            minDate={parseIso(startDate)}
+            placeholder="Pick end date"
           />
         </div>
         <Button type="submit" disabled={pending} className="bg-gradient-brand text-white font-bold">

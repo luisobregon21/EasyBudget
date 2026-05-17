@@ -3,9 +3,9 @@ import { useActionState, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Pencil } from "lucide-react";
 import { updateTripDates } from "@/lib/actions/trips";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { DateField } from "@/components/ui/date-field";
 
 interface Props {
   tripId: number;
@@ -50,25 +50,12 @@ export function EditTripDatesForm({ tripId, startDate, endDate }: Props) {
       <form action={formAction} className="space-y-3">
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1">
-            <Label htmlFor="startDate" className="text-muted-base text-[10px] uppercase tracking-widest">Start date</Label>
-            <Input
-              id="startDate"
-              name="startDate"
-              type="date"
-              required
-              defaultValue={startDate}
-              className="bg-bg-deep border-accent-purple/20 text-foreground"
-            />
+            <Label className="text-muted-base text-[10px] uppercase tracking-widest">Start date</Label>
+            <DateField name="startDate" required defaultValue={startDate} />
           </div>
           <div className="space-y-1">
-            <Label htmlFor="endDate" className="text-muted-base text-[10px] uppercase tracking-widest">End date</Label>
-            <Input
-              id="endDate"
-              name="endDate"
-              type="date"
-              defaultValue={endDate ?? ""}
-              className="bg-bg-deep border-accent-purple/20 text-foreground"
-            />
+            <Label className="text-muted-base text-[10px] uppercase tracking-widest">End date</Label>
+            <DateField name="endDate" defaultValue={endDate ?? undefined} placeholder="(not set)" />
           </div>
         </div>
         <div className="flex gap-2 justify-end">

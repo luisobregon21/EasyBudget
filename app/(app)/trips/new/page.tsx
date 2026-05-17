@@ -4,6 +4,7 @@ import { createTrip } from "@/lib/actions/trips";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DateField } from "@/components/ui/date-field";
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 import { toast } from "sonner";
@@ -41,7 +42,7 @@ export default function NewTripPage() {
         </div>
         <div className="space-y-1">
           <Label className="text-muted-base text-[10px] uppercase tracking-widest">Start Date</Label>
-          <Input name="startDate" type="date" required className="bg-bg-deep border-accent-purple/20 text-foreground" />
+          <DateField name="startDate" required placeholder="Pick a start date" />
         </div>
         <label className="flex items-center gap-2 cursor-pointer">
           <input
@@ -56,7 +57,7 @@ export default function NewTripPage() {
         {!noEndDate && (
           <div className="space-y-1">
             <Label className="text-muted-base text-[10px] uppercase tracking-widest">End Date</Label>
-            <Input name="endDate" type="date" className="bg-bg-deep border-accent-purple/20 text-foreground" />
+            <DateField name="endDate" placeholder="Pick an end date" />
           </div>
         )}
         <div className="space-y-1">
