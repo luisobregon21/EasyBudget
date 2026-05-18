@@ -2,6 +2,7 @@
 import { getDb, months, expenses, tags, trips, incomeEntries } from "@/lib/db";
 import { and, eq, gte, lte, inArray, sql } from "drizzle-orm";
 import { requireSession } from "@/lib/auth/session";
+import { roundMoney } from "@/lib/utils";
 
 export type Range = "6mo" | "12mo" | "ytd";
 
@@ -113,8 +114,8 @@ export async function getMonthlyTrend(range: Range): Promise<TrendPoint[]> {
   for (const row of incomeRows) incomeByMonth.set(row.monthId, Number(row.total));
 
   return monthRows.map((m) => {
-    const spent  = spendByMonth.get(m.id) ?? 0;
-    const income = incomeByMonth.get(m.id) ?? 0;
+    const spent  = roundMoney(spendByMonth.get(m.id) ?? 0);
+    const income = roundMoney(incomeByMonth.get(m.id) ?? 0);
     const savedPct = income > 0 ? Math.max(0, ((income - spent) / income) * 100) : 0;
     return {
       year: m.year,

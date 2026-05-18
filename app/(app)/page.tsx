@@ -4,7 +4,7 @@ import { getExpensesForMonth, getRecentExpenses } from "@/lib/actions/expenses";
 import { getUpcomingBills } from "@/lib/actions/bills";
 import { getIncomeEntries, cleanupBackfilledPastEntries } from "@/lib/actions/income";
 import { getDailySpend } from "@/lib/actions/trends";
-import { currentYearMonth, calcIncomeTotals, formatMonth } from "@/lib/utils";
+import { currentYearMonth, calcIncomeTotals, formatMonth, roundMoney } from "@/lib/utils";
 import { daysIntoMonth, projectedTotal, paceStatus } from "@/lib/actions/forecast";
 import { TopBar } from "@/components/layout/top-bar";
 import { ContextStrip } from "@/components/layout/context-strip";
@@ -49,9 +49,9 @@ export default async function HomePage({
     ]);
 
   const { budgetTotal, actualBalance } = calcIncomeTotals(incomeEntries);
-  const income      = budgetTotal > 0 ? budgetTotal : (monthData.income ?? 0);
-  const totalSpent  = expenseRows.reduce((s, e) => s + (e.amountUsd ?? 0), 0);
-  const remaining   = Math.max(0, income - totalSpent);
+  const income      = roundMoney(budgetTotal > 0 ? budgetTotal : (monthData.income ?? 0));
+  const totalSpent  = roundMoney(expenseRows.reduce((s, e) => s + (e.amountUsd ?? 0), 0));
+  const remaining   = roundMoney(Math.max(0, income - totalSpent));
 
   const { day: dayOfMonth, total: daysInMonth, pctThroughMonth } = daysIntoMonth(new Date());
   const projected  = projectedTotal(totalSpent, dayOfMonth, daysInMonth);
@@ -73,24 +73,24 @@ export default async function HomePage({
       key:      "savings" as const,
       name:     "Savings",
       pct:      monthData.savingsPct ?? 20,
-      alloc:    income * ((monthData.savingsPct ?? 20) / 100),
-      spent:    byBucket("savings"),
+      alloc:    roundMoney(income * ((monthData.savingsPct ?? 20) / 100)),
+      spent:    roundMoney(byBucket("savings")),
       expected: bucketExpected(byBucket("savings")),
     },
     {
       key:      "bills" as const,
       name:     "Bills",
       pct:      monthData.billsPct ?? 70,
-      alloc:    income * ((monthData.billsPct ?? 70) / 100),
-      spent:    byBucket("bills"),
+      alloc:    roundMoney(income * ((monthData.billsPct ?? 70) / 100)),
+      spent:    roundMoney(byBucket("bills")),
       expected: bucketExpected(byBucket("bills")),
     },
     {
       key:      "wants" as const,
       name:     "Wants",
       pct:      monthData.wantsPct ?? 10,
-      alloc:    income * ((monthData.wantsPct ?? 10) / 100),
-      spent:    byBucket("wants"),
+      alloc:    roundMoney(income * ((monthData.wantsPct ?? 10) / 100)),
+      spent:    roundMoney(byBucket("wants")),
       expected: bucketExpected(byBucket("wants")),
     },
   ];
