@@ -1,11 +1,12 @@
 "use client";
 import { useActionState, useEffect, useRef, useState } from "react";
-import { X } from "lucide-react";
+import { X, ImagePlus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { createCardPayment } from "@/lib/actions/card-payments";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import type { CardWithBalance } from "@/lib/actions/card-payments";
+import { compressImage } from "@/lib/image-compress";
 
 interface Props {
   card: CardWithBalance;
@@ -17,15 +18,37 @@ export function PayCardSheet({ card, otherMethods, onClose }: Props) {
   const today = new Date().toISOString().split("T")[0];
   const [paidFrom, setPaidFrom] = useState<string>("cash");
   const [formKey, setFormKey] = useState(0);
+  const [receipt, setReceipt] = useState<File | null>(null);
+  const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
 
-  const [state, action, pending] = useActionState(createCardPayment, undefined);
+  const [state, action, pending] = useActionState(
+    async (prev: unknown, fd: FormData) => {
+      if (receipt) {
+        const compressed = await compressImage(receipt);
+        fd.set("receipt", compressed);
+      } else {
+        fd.delete("receipt");
+      }
+      return createCardPayment(prev, fd);
+    },
+    undefined,
+  );
   const toastedState = useRef<typeof state>(undefined);
+
+  function pickReceipt(file: File | null) {
+    setReceipt(file);
+    if (receiptPreview) URL.revokeObjectURL(receiptPreview);
+    setReceiptPreview(file ? URL.createObjectURL(file) : null);
+  }
+
+  useEffect(() => () => { if (receiptPreview) URL.revokeObjectURL(receiptPreview); }, [receiptPreview]);
 
   useEffect(() => {
     if (!state || state === toastedState.current) return;
     toastedState.current = state;
     if (state.success) {
       toast.success(state.message);
+      pickReceipt(null);
       onClose();
       setFormKey((k) => k + 1);
     } else {
@@ -129,6 +152,40 @@ export function PayCardSheet({ card, otherMethods, onClose }: Props) {
               placeholder="e.g. January statement payment"
               className="bg-bg-deep border-accent-purple/20 text-foreground"
             />
+          </div>
+
+          {/* receipt (optional) */}
+          <div className="space-y-1">
+            <p className="text-muted-base text-[10px] uppercase tracking-widest">Receipt (optional)</p>
+            {receipt && receiptPreview ? (
+              <div className="flex items-center gap-3 p-2 rounded-xl bg-bg-deep border border-accent-purple/20">
+                <img src={receiptPreview} alt="receipt preview" className="w-12 h-12 rounded-lg object-cover" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-foreground text-xs truncate">{receipt.name}</p>
+                  <p className="text-muted-base text-[10px]">{(receipt.size / 1024).toFixed(0)} KB · will compress</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => pickReceipt(null)}
+                  className="text-muted-base hover:text-red-400 transition-colors"
+                  aria-label="Remove receipt"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            ) : (
+              <label className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-bg-deep border border-accent-purple/20 cursor-pointer hover:border-accent-purple/40 transition-colors">
+                <ImagePlus size={16} className="text-muted-base" />
+                <span className="text-muted-base text-sm">Attach a photo</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  className="hidden"
+                  onChange={(e) => pickReceipt(e.target.files?.[0] ?? null)}
+                />
+              </label>
+            )}
           </div>
 
           <Button

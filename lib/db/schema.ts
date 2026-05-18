@@ -76,6 +76,7 @@ export const tags = pgTable("tags", {
   emoji:         text("emoji"),  // nullable — null = render auto lucide icon from name
   color:         text("color").notNull().default("#a78bfa"),
   defaultBucket: text("default_bucket").$type<"savings" | "bills" | "wants">().notNull().default("wants"),
+  aliases:       text("aliases"),  // JSON-encoded string[] of alternate words; matched against expense descriptions for auto-tagging
 });
 
 export const trips = pgTable("trips", {
@@ -104,16 +105,18 @@ export const expenses = pgTable("expenses", {
   bucket:          text("bucket").$type<"savings" | "bills" | "wants">().notNull(),
   tagId:         integer("tag_id").references(() => tags.id, { onDelete: "set null" }),
   tripId:        integer("trip_id").references(() => trips.id, { onDelete: "set null" }),
+  billId:        integer("bill_id"),  // set when this expense was auto-created from a "Mark Paid" action; enables per-month dedupe
   createdAt:     timestamp("created_at").notNull().defaultNow(),
 });
 
 // NEW: credit cards owned by user
 export const creditCards = pgTable("credit_cards", {
-  id:     serial("id").primaryKey(),
-  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  name:   text("name").notNull(),
-  type:   text("type").$type<"credit" | "debit" | "ath_movil">().notNull().default("credit"),
-  dueDay: integer("due_day"),   // nullable — only required for credit cards
+  id:          serial("id").primaryKey(),
+  userId:      text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name:        text("name").notNull(),
+  type:        text("type").$type<"credit" | "debit" | "ath_movil">().notNull().default("credit"),
+  dueDay:      integer("due_day"),   // nullable — only required for credit cards
+  creditLimit: real("credit_limit"), // nullable — only meaningful for credit cards
 });
 
 export const bills = pgTable("bills", {
@@ -188,6 +191,8 @@ export const cardPayments = pgTable("card_payments", {
   date:             date("date").notNull(),
   paidFromMethodId: integer("paid_from_method_id").references(() => creditCards.id, { onDelete: "set null" }),
   note:             text("note"),
+  receiptUrl:       text("receipt_url"),       // Vercel Blob URL — private store, served via signed URL
+  receiptPathname:  text("receipt_pathname"),  // store-relative key for delete + re-sign
   isAdjustment:     boolean("is_adjustment").notNull().default(false),
   createdAt:        timestamp("created_at").notNull().defaultNow(),
 });
