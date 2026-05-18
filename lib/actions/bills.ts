@@ -1,5 +1,5 @@
 "use server";
-import { getDb, bills, billPayments, creditCards } from "@/lib/db";
+import { getDb, bills, billPayments, creditCards, expenses } from "@/lib/db";
 import { and, eq, asc, desc } from "drizzle-orm";
 import { requireSession } from "@/lib/auth/session";
 import { revalidatePath } from "next/cache";
@@ -197,7 +197,47 @@ export async function recordBillPayment(
       note,
     });
 
+    // If this bill is tied to a credit card, auto-log a matching expense so
+    // the card balance + expenses ledger reflect reality. Idempotent per (bill, month).
+    if (bill.creditCardId) {
+      const [existing] = await db.select({ id: expenses.id }).from(expenses)
+        .where(and(
+          eq(expenses.userId, user.id!),
+          eq(expenses.billId, billId),
+          eq(expenses.monthId, monthId),
+        ))
+        .limit(1);
+
+      if (!existing) {
+        const [card] = await db.select().from(creditCards)
+          .where(eq(creditCards.id, bill.creditCardId))
+          .limit(1);
+        const paymentMethod: "credit_card" | "debit" =
+          card?.type === "credit" ? "credit_card" : "debit";
+
+        await db.insert(expenses).values({
+          userId:          user.id!,
+          monthId,
+          amount,
+          currency:        "USD",
+          amountUsd:       amount,
+          exchangeRate:    1,
+          description:     bill.name,
+          date:            dateStr,
+          paymentMethod,
+          paymentMethodId: bill.creditCardId,
+          bucket:          "bills",
+          tagId:           null,
+          tripId:          null,
+          billId,
+        });
+        revalidatePath("/payments");
+        revalidatePath("/expenses");
+      }
+    }
+
     revalidatePath("/bills");
+    revalidatePath("/");
     return { success: true, message: `${bill.name} marked as paid` };
   } catch (e) {
     return { success: false, message: e instanceof Error ? e.message : "Failed to record payment" };
@@ -253,9 +293,32 @@ export async function deleteBillPayment(paymentId: number): Promise<{ success: b
   try {
     const user = await requireSession();
     const db = getDb();
+
+    // Look up the payment first so we know which bill+month to clean up.
+    const [payment] = await db.select({
+      billId:  billPayments.billId,
+      monthId: billPayments.monthId,
+    }).from(billPayments)
+      .where(and(eq(billPayments.id, paymentId), eq(billPayments.userId, user.id!)))
+      .limit(1);
+
     await db.delete(billPayments)
       .where(and(eq(billPayments.id, paymentId), eq(billPayments.userId, user.id!)));
+
+    // Roll back the auto-logged expense, if any. Safe to run unconditionally:
+    // expenses without a matching billId+monthId are untouched.
+    if (payment) {
+      await db.delete(expenses).where(and(
+        eq(expenses.userId, user.id!),
+        eq(expenses.billId, payment.billId),
+        eq(expenses.monthId, payment.monthId),
+      ));
+      revalidatePath("/payments");
+      revalidatePath("/expenses");
+    }
+
     revalidatePath("/bills");
+    revalidatePath("/");
     return { success: true, message: "Payment removed" };
   } catch (e) {
     return { success: false, message: e instanceof Error ? e.message : "Failed to remove payment" };

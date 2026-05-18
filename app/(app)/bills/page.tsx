@@ -72,6 +72,11 @@ function getDueDay(b: UserBill, todayMonth: number): number {
   return b.dueDay;
 }
 
+/** Days until the bill is due this month. Negative = overdue. Used for sorting. */
+function daysUntilDue(b: UserBill, todayDay: number, todayMonth: number): number {
+  return getDueDay(b, todayMonth) - todayDay;
+}
+
 const TABS = [
   { id: "all",       label: "All"       },
   { id: "overdue",   label: "Overdue"   },
@@ -117,21 +122,32 @@ export default async function BillsPage({
   const { day: dayOfMonth, total: daysInMonth } = daysIntoMonth(new Date());
   const projected = projectedTotal(totalSpent, dayOfMonth, daysInMonth);
 
+  const todayDay   = new Date().getDate();
   const todayMonth = new Date().getMonth() + 1;
+
+  // Paid-this-month bill ids — exclude these from overdue/due-soon/upcoming groups
+  const paidBillIds = new Set(paidBillPayments.map((p) => p.billId));
 
   // Classify bills
   const withStatus = billsList.map((b) => ({
     ...b,
-    computedStatus: getBillStatus(b) as BillStatus,
+    computedStatus:  getBillStatus(b) as BillStatus,
     effectiveDueDay: getDueDay(b, todayMonth),
+    daysUntilDue:    daysUntilDue(b, todayDay, todayMonth),
   }));
 
-  const overdueBills  = withStatus.filter((b) => b.computedStatus === "overdue");
-  const dueSoonBills  = withStatus.filter((b) => b.computedStatus === "due-soon");
-  const upcomingBills = withStatus.filter((b) => b.computedStatus === "upcoming");
-  // Paid bills: derive from paidBillPayments (set of billIds paid this month)
-  const paidBillIds = new Set(paidBillPayments.map((p) => p.billId));
-  const paidBills = withStatus.filter((b) => paidBillIds.has(b.id));
+  // Soonest-to-be-due first within each group; for overdue, most-overdue first (smallest daysUntilDue).
+  const byDueAsc = <T extends { daysUntilDue: number }>(a: T, b: T) => a.daysUntilDue - b.daysUntilDue;
+
+  const overdueBills  = withStatus
+    .filter((b) => b.computedStatus === "overdue"  && !paidBillIds.has(b.id))
+    .sort(byDueAsc);
+  const dueSoonBills  = withStatus
+    .filter((b) => b.computedStatus === "due-soon" && !paidBillIds.has(b.id))
+    .sort(byDueAsc);
+  const upcomingBills = withStatus
+    .filter((b) => b.computedStatus === "upcoming" && !paidBillIds.has(b.id))
+    .sort(byDueAsc);
 
   // BillsHero needs BillMarker[]
   const billMarkers = withStatus.map((b) => ({

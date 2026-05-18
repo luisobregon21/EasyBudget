@@ -1,14 +1,15 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, BarChart2, Receipt, Wallet, CreditCard, Tag, Plane, Target, Settings, Plus } from "lucide-react";
+import { Home, BarChart2, Receipt, Wallet, CreditCard, Tag, Plane, Target, Settings, Plus, ListChecks } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const TOP_NAV = [
-  { href: "/",        label: "Dashboard", icon: Home },
-  { href: "/income",  label: "Income",   icon: Wallet },
-  { href: "/bills",   label: "Bills",    icon: Receipt },
-  { href: "/trends",  label: "Trends",   icon: BarChart2 },
+  { href: "/",         label: "Dashboard", icon: Home },
+  { href: "/income",   label: "Income",    icon: Wallet },
+  { href: "/bills",    label: "Bills",     icon: Receipt },
+  { href: "/expenses", label: "Expenses",  icon: ListChecks },
+  { href: "/trends",   label: "Trends",    icon: BarChart2 },
 ];
 
 const MORE_NAV = [
