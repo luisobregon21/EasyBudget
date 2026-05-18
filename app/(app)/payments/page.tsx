@@ -2,6 +2,7 @@ import Link from "next/link";
 import { CreditCard } from "lucide-react";
 import { getCreditCardsWithBalances, getCardActivity } from "@/lib/actions/card-payments";
 import { PaymentsClient } from "./payments-client";
+import { OverallUtilizationCard } from "@/components/payments/overall-utilization-card";
 import type { CardActivityRow } from "@/lib/actions/card-payments";
 
 export default async function PaymentsPage() {
@@ -46,6 +47,9 @@ export default async function PaymentsPage() {
           </Link>
         </div>
       )}
+
+      {/* Overall utilization summary */}
+      {creditCards.length > 0 && <OverallUtilizationCard creditCards={creditCards} />}
 
       {/* Cards */}
       {creditCards.length > 0 && (

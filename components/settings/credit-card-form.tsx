@@ -74,6 +74,22 @@ export function AddCardForm() {
         )}
       </div>
 
+      {type === "credit" && (
+        <div className="space-y-1">
+          <Label className="text-muted-base text-[10px] uppercase tracking-widest">
+            Credit Limit <span className="normal-case text-muted-base font-normal">— optional, enables utilization tracking</span>
+          </Label>
+          <Input
+            name="creditLimit"
+            type="number"
+            step="0.01"
+            min="0"
+            placeholder="5000"
+            className="bg-bg-deep border-accent-purple/20 text-foreground"
+          />
+        </div>
+      )}
+
       {state?.success === false && (
         <p className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2">
           {state.message}
