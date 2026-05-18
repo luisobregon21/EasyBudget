@@ -13,12 +13,34 @@ const BUCKET_STYLES: Record<Bucket, string> = {
   wants:   "bg-violet-500/15 border-violet-500/40 text-violet-400",
 };
 
-export function TagPickerWrapper({ tags, defaultTagId, defaultBucket }: { tags: Tag[]; defaultTagId?: number | null; defaultBucket?: Bucket }) {
+export function TagPickerWrapper({
+  tags,
+  defaultTagId,
+  defaultBucket,
+  suggestedTagId,
+}: {
+  tags: Tag[];
+  defaultTagId?: number | null;
+  defaultBucket?: Bucket;
+  /** Optional: pre-select this tag if the user hasn't already chosen one. */
+  suggestedTagId?: number | null;
+}) {
   const [bucket, setBucket] = useState<Bucket>(defaultBucket ?? "wants");
+  const showSuggestion = suggestedTagId != null && suggestedTagId !== defaultTagId;
 
   return (
     <div className="space-y-3">
-      <TagPicker tags={tags} onBucketChange={setBucket} defaultTagId={defaultTagId} />
+      {showSuggestion && (
+        <p className="text-[10px] text-amber-400/80">
+          Suggested from description — change if it&apos;s wrong.
+        </p>
+      )}
+      <TagPicker
+        tags={tags}
+        onBucketChange={setBucket}
+        defaultTagId={defaultTagId}
+        suggestedTagId={suggestedTagId}
+      />
       <div className="space-y-1">
         <p className="text-muted-base text-[10px] uppercase tracking-widest">Budget bucket</p>
         <div className="flex gap-2">

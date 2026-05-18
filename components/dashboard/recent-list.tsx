@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { IconTile } from "@/components/ui/icon-tile";
 import { tagIcon } from "@/lib/icons";
 
@@ -70,14 +71,17 @@ export function RecentList({ expenses }: Props) {
       {expenses.map((e, i) => {
         const icon = tagIcon(e.tagName ?? e.category);
         return (
-          <div
+          <Link
             key={e.id}
+            href={`/expenses/${e.id}/edit`}
             style={{
               display: "flex",
               alignItems: "center",
               gap: 11,
               padding: "8px 14px",
               borderTop: i ? "1px solid rgba(167,139,250,0.13)" : "none",
+              textDecoration: "none",
+              color: "inherit",
             }}
           >
             <IconTile icon={icon} />
@@ -98,7 +102,7 @@ export function RecentList({ expenses }: Props) {
             >
               −{fmtDec(e.amount)}
             </div>
-          </div>
+          </Link>
         );
       })}
     </div>

@@ -10,6 +10,7 @@ import { DeleteTagButton } from "./delete-tag-button";
 import { IconTile } from "@/components/ui/icon-tile";
 import { tagIcon } from "@/lib/icons";
 import { createTag, updateTag } from "@/lib/actions/tags";
+import { parseAliases } from "@/lib/tag-matcher";
 
 type Bucket = "savings" | "bills" | "wants";
 
@@ -18,6 +19,7 @@ export interface Tag {
   name: string;
   emoji: string | null;
   defaultBucket: Bucket;
+  aliases?: string | null;  // JSON-encoded string[]
 }
 
 interface ViewProps {
@@ -104,6 +106,19 @@ function EditRow({ tag, onDone }: EditProps) {
             <BucketRadio key={b} bucket={b} defaultSelected={tag?.defaultBucket ?? "wants"} />
           ))}
         </div>
+      </div>
+
+      <div className="space-y-1">
+        <Label htmlFor="aliases" className="text-muted-base text-[10px] uppercase tracking-widest">
+          Aliases <span className="normal-case text-muted-base font-normal">— comma-separated words that auto-match in expense descriptions</span>
+        </Label>
+        <Input
+          id="aliases"
+          name="aliases"
+          defaultValue={parseAliases(tag?.aliases).join(", ")}
+          placeholder="e.g. abuelo, grandma, mom, dad"
+          className="bg-bg-deep border-accent-purple/20 text-foreground"
+        />
       </div>
 
       <div className="flex gap-2 justify-end pt-1">

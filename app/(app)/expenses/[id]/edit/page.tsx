@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
+import { matchTagFromDescription } from "@/lib/tag-matcher";
 
 export default async function EditExpensePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -29,6 +30,11 @@ export default async function EditExpensePage({ params }: { params: Promise<{ id
   const defaultPaymentMethod = expense.paymentMethodId
     ? String(expense.paymentMethodId)
     : "cash";
+
+  // Auto-suggest a tag from the description only if the expense is currently untagged.
+  const suggestedTagId = !expense.tagId
+    ? matchTagFromDescription(expense.description, tags)?.id ?? null
+    : null;
 
   return (
     <div className="max-w-lg mx-auto">
@@ -75,6 +81,7 @@ export default async function EditExpensePage({ params }: { params: Promise<{ id
             tags={tags as any}
             defaultTagId={expense.tagId}
             defaultBucket={expense.bucket as any}
+            suggestedTagId={suggestedTagId}
           />
         </div>
 

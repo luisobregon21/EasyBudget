@@ -1,5 +1,5 @@
 "use client";
-import { useActionState, useEffect, useRef, useState } from "react";
+import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { createExpense } from "@/lib/actions/expenses";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -8,21 +8,48 @@ import { TagPickerWrapper } from "@/components/expenses/tag-picker-wrapper";
 import { toast } from "sonner";
 import { X, ChevronDown, ChevronUp } from "lucide-react";
 import { currentYearMonth } from "@/lib/utils";
+import { matchTagFromDescription } from "@/lib/tag-matcher";
 
 type SavedMethod = { id: number; name: string; type: string };
+
+type Tag = {
+  id: number;
+  name: string;
+  emoji: string;
+  defaultBucket: "savings" | "bills" | "wants";
+  aliases?: string | null;
+};
 
 interface Props {
   open: boolean;
   onClose: () => void;
   paymentMethods: SavedMethod[];
-  tags: { id: number; name: string; emoji: string; defaultBucket: "savings" | "bills" | "wants" }[];
+  tags: Tag[];
 }
 
 export function AddExpenseDrawer({ open, onClose, paymentMethods, tags }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [formKey, setFormKey] = useState(0);
+  const [description, setDescription] = useState("");
+  const [debouncedDesc, setDebouncedDesc] = useState("");
   const { year, month } = currentYearMonth();
   const today = new Date().toISOString().split("T")[0];
+
+  // Debounce the description so we don't run the matcher on every keystroke
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedDesc(description), 250);
+    return () => clearTimeout(t);
+  }, [description]);
+
+  const suggestedTagId = useMemo(() => {
+    if (!debouncedDesc.trim()) return null;
+    return matchTagFromDescription(debouncedDesc, tags)?.id ?? null;
+  }, [debouncedDesc, tags]);
+
+  // When a suggestion appears, surface the picker so the user can see/confirm it.
+  useEffect(() => {
+    if (suggestedTagId != null) setExpanded(true);
+  }, [suggestedTagId]);
 
   const [state, action, pending] = useActionState(createExpense, undefined);
   const toastedState = useRef<typeof state>(undefined);
@@ -42,6 +69,8 @@ export function AddExpenseDrawer({ open, onClose, paymentMethods, tags }: Props)
   useEffect(() => {
     if (!open) {
       setExpanded(false);
+      setDescription("");
+      setDebouncedDesc("");
       toastedState.current = undefined;
       setFormKey((k) => k + 1);
     }
@@ -105,6 +134,8 @@ export function AddExpenseDrawer({ open, onClose, paymentMethods, tags }: Props)
             name="description"
             required
             placeholder="What was this for?"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
             className="bg-bg-deep border-accent-purple/20 text-foreground"
           />
 
@@ -138,7 +169,7 @@ export function AddExpenseDrawer({ open, onClose, paymentMethods, tags }: Props)
               </div>
               <div className="space-y-1">
                 <p className="text-muted-base text-[10px] uppercase tracking-widest">Category & Bucket</p>
-                <TagPickerWrapper tags={tags} />
+                <TagPickerWrapper tags={tags} suggestedTagId={suggestedTagId} />
               </div>
             </div>
           )}
