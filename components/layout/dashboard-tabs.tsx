@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { Settings } from "lucide-react";
 import { usePathname, useSearchParams } from "next/navigation";
 
 type Tab = { label: string; href: string; sub?: string };
@@ -27,25 +28,41 @@ export function DashboardTabs() {
   const search = useSearchParams();
   const sub = search.get("sub");
 
+  const settingsActive = path === "/settings" || path.startsWith("/settings/");
+
   return (
-    <div className="md:hidden sticky top-0 z-40 bg-bg-deep/95 backdrop-blur border-b border-accent-purple/13 px-4 flex gap-1 overflow-x-auto">
-      {TABS.map((t) => {
-        const active = isActive(path, sub, t);
-        return (
-          <Link
-            key={t.label}
-            href={t.href}
-            className={`relative px-3 py-2.5 text-xs whitespace-nowrap transition-colors ${
-              active ? "font-bold text-foreground" : "font-medium text-muted-base hover:text-foreground"
-            }`}
-          >
-            {t.label}
-            {active && (
-              <span className="absolute -bottom-px left-1.5 right-1.5 h-0.5 rounded bg-gradient-to-r from-amber-400 to-pink-500" />
-            )}
-          </Link>
-        );
-      })}
+    <div className="md:hidden sticky top-0 z-40 bg-bg-deep/95 backdrop-blur border-b border-accent-purple/13 flex items-stretch">
+      {/* Scrollable tabs */}
+      <div className="flex-1 min-w-0 flex gap-1 overflow-x-auto px-4">
+        {TABS.map((t) => {
+          const active = isActive(path, sub, t);
+          return (
+            <Link
+              key={t.label}
+              href={t.href}
+              className={`relative px-3 py-2.5 text-xs whitespace-nowrap transition-colors ${
+                active ? "font-bold text-foreground" : "font-medium text-muted-base hover:text-foreground"
+              }`}
+            >
+              {t.label}
+              {active && (
+                <span className="absolute -bottom-px left-1.5 right-1.5 h-0.5 rounded bg-gradient-to-r from-amber-400 to-pink-500" />
+              )}
+            </Link>
+          );
+        })}
+      </div>
+
+      {/* Settings gear (fixed at right) */}
+      <Link
+        href="/settings"
+        aria-label="Settings"
+        className={`shrink-0 flex items-center justify-center w-11 border-l border-accent-purple/13 transition-colors ${
+          settingsActive ? "text-accent-purple-light" : "text-muted-base hover:text-foreground"
+        }`}
+      >
+        <Settings size={16} />
+      </Link>
     </div>
   );
 }
