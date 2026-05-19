@@ -36,23 +36,22 @@ export function RegisterForm() {
     setStage("registering");
     setErrorMessage(null);
 
-    try {
-      await registerUser(data);
-    } catch (err) {
+    const registerResult = await registerUser(data);
+    if (!registerResult.success) {
       setStage("error");
-      setErrorMessage(err instanceof Error ? err.message : "Registration failed. Please try again.");
+      setErrorMessage(registerResult.message);
       return;
     }
 
     setStage("signing-in");
 
-    const result = await signIn("credentials", {
+    const signInResult = await signIn("credentials", {
       email: data.email,
       password: data.password,
       redirect: false,
     });
 
-    if (result?.error) {
+    if (signInResult?.error) {
       setStage("error");
       setErrorMessage("Account created but sign-in failed. Please go to the login page.");
       return;

@@ -11,24 +11,39 @@ const registerSchema = z.object({
   password: z.string().min(8, "Password must be at least 8 characters"),
 });
 
-export async function registerUser(data: z.infer<typeof registerSchema>) {
-  const parsed = registerSchema.parse(data);
+type RegisterInput = z.infer<typeof registerSchema>;
 
-  const db = getDb();
-  const [existing] = await db
-    .select({ id: users.id })
-    .from(users)
-    .where(eq(users.email, parsed.email))
-    .limit(1);
+export type RegisterResult =
+  | { success: true; user: { id: string; email: string } }
+  | { success: false; message: string };
 
-  if (existing) throw new Error("An account with this email already exists");
+export async function registerUser(data: RegisterInput): Promise<RegisterResult> {
+  const parsed = registerSchema.safeParse(data);
+  if (!parsed.success) {
+    return { success: false, message: parsed.error.issues[0]?.message ?? "Invalid input" };
+  }
 
-  const hashed = await bcrypt.hash(parsed.password, 12);
+  try {
+    const db = getDb();
+    const [existing] = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.email, parsed.data.email))
+      .limit(1);
 
-  const [user] = await db
-    .insert(users)
-    .values({ name: parsed.name, email: parsed.email, password: hashed })
-    .returning({ id: users.id, email: users.email });
+    if (existing) {
+      return { success: false, message: "An account with this email already exists" };
+    }
 
-  return user;
+    const hashed = await bcrypt.hash(parsed.data.password, 12);
+
+    const [user] = await db
+      .insert(users)
+      .values({ name: parsed.data.name, email: parsed.data.email, password: hashed })
+      .returning({ id: users.id, email: users.email });
+
+    return { success: true, user };
+  } catch (e) {
+    return { success: false, message: e instanceof Error ? e.message : "Registration failed" };
+  }
 }
