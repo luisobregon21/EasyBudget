@@ -7,14 +7,18 @@ import { AddExpenseDrawer } from "./add-expense-drawer";
 
 type SavedMethod = { id: number; name: string; type: string };
 type Tag = { id: number; name: string; emoji: string; defaultBucket: "savings" | "bills" | "wants" };
+type BillOption = { id: number; name: string };
+type TripOption = { id: number; name: string; primaryCurrency: string };
 
 interface Props {
   children: React.ReactNode;
   paymentMethods: SavedMethod[];
   tags: Tag[];
+  bills: BillOption[];
+  trips: TripOption[];
 }
 
-export function AppShell({ children, paymentMethods, tags }: Props) {
+export function AppShell({ children, paymentMethods, tags, bills, trips }: Props) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const openDrawer = () => setDrawerOpen(true);
 
@@ -36,6 +40,8 @@ export function AppShell({ children, paymentMethods, tags }: Props) {
         onClose={() => setDrawerOpen(false)}
         paymentMethods={paymentMethods}
         tags={tags}
+        bills={bills}
+        trips={trips}
       />
     </>
   );

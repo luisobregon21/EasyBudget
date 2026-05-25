@@ -1,13 +1,16 @@
 import Link from "next/link";
 import { IconTile } from "@/components/ui/icon-tile";
 import { tagIcon } from "@/lib/icons";
+import { SwipeableRow } from "@/components/expenses/swipeable-row";
 
 interface Expense {
   id: number;
   name: string;
   tagName?: string | null;
   category?: string | null;
-  amount: number;
+  amount: number;       // USD-normalized
+  amountRaw?: number;   // local-currency amount as entered (optional, for trips)
+  currency?: string;    // currency code (optional)
   date: string;
 }
 
@@ -70,9 +73,8 @@ export function RecentList({ expenses }: Props) {
 
       {expenses.map((e, i) => {
         const icon = tagIcon(e.tagName ?? e.category);
-        return (
+        const linkContent = (
           <Link
-            key={e.id}
             href={`/expenses/${e.id}/edit`}
             style={{
               display: "flex",
@@ -93,16 +95,42 @@ export function RecentList({ expenses }: Props) {
             </div>
             <div
               style={{
-                fontSize: 12.5,
-                fontWeight: 600,
-                color: "#ede9f6",
+                textAlign: "right",
                 fontFamily: "var(--font-geist-mono, monospace)",
                 fontVariantNumeric: "tabular-nums",
               }}
             >
-              −{fmtDec(e.amount)}
+              {e.currency && e.currency !== "USD" && e.amountRaw != null ? (
+                <>
+                  <div style={{ fontSize: 12.5, fontWeight: 600, color: "#ede9f6" }}>
+                    −{fmtDec(e.amountRaw)} {e.currency}
+                  </div>
+                  <div style={{ fontSize: 9.5, color: "#8a7da8", marginTop: 1 }}>
+                    {fmtDec(e.amount)} USD
+                  </div>
+                </>
+              ) : (
+                <div style={{ fontSize: 12.5, fontWeight: 600, color: "#ede9f6" }}>
+                  −{fmtDec(e.amount)}
+                </div>
+              )}
             </div>
           </Link>
+        );
+
+        return (
+          <div key={e.id}>
+            {/* Mobile: swipe-to-delete */}
+            <SwipeableRow
+              label={`${e.name} ${fmtDec(e.amount)}`}
+              expenseId={e.id}
+            >
+              {linkContent}
+            </SwipeableRow>
+
+            {/* Desktop: plain link, no extra trash (Recent list never had one) */}
+            <div className="hidden md:block">{linkContent}</div>
+          </div>
         );
       })}
     </div>

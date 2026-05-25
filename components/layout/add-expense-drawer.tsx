@@ -1,5 +1,5 @@
 "use client";
-import { useActionState, useEffect, useMemo, useRef, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { createExpense } from "@/lib/actions/expenses";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { X, ChevronDown, ChevronUp } from "lucide-react";
 import { currentYearMonth } from "@/lib/utils";
 import { matchTagFromDescription } from "@/lib/tag-matcher";
+import { suggestTagFromAI } from "@/lib/actions/tags";
 
 type SavedMethod = { id: number; name: string; type: string };
 
@@ -20,20 +21,37 @@ type Tag = {
   aliases?: string | null;
 };
 
+type BillOption = { id: number; name: string };
+type TripOption = { id: number; name: string; primaryCurrency: string };
+
+const CURRENCIES = ["USD", "NIO", "GTQ", "MXN", "EUR", "GBP", "CAD"];
+
 interface Props {
   open: boolean;
   onClose: () => void;
   paymentMethods: SavedMethod[];
   tags: Tag[];
+  bills: BillOption[];
+  trips: TripOption[];
 }
 
-export function AddExpenseDrawer({ open, onClose, paymentMethods, tags }: Props) {
+export function AddExpenseDrawer({ open, onClose, paymentMethods, tags, bills, trips }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [formKey, setFormKey] = useState(0);
   const [description, setDescription] = useState("");
   const [debouncedDesc, setDebouncedDesc] = useState("");
+  const [tripId, setTripId] = useState<string>("none");
+  const [currency, setCurrency] = useState<string>("USD");
   const { year, month } = currentYearMonth();
   const today = new Date().toISOString().split("T")[0];
+
+  // When the user picks a trip, default the currency to that trip's primary.
+  // They can still override per-expense (USD vs local).
+  useEffect(() => {
+    if (tripId === "none") return;
+    const trip = trips.find((t) => String(t.id) === tripId);
+    if (trip) setCurrency(trip.primaryCurrency);
+  }, [tripId, trips]);
 
   // Debounce the description so we don't run the matcher on every keystroke
   useEffect(() => {
@@ -41,10 +59,43 @@ export function AddExpenseDrawer({ open, onClose, paymentMethods, tags }: Props)
     return () => clearTimeout(t);
   }, [description]);
 
-  const suggestedTagId = useMemo(() => {
-    if (!debouncedDesc.trim()) return null;
-    return matchTagFromDescription(debouncedDesc, tags)?.id ?? null;
+  // Source: 'alias' = local matcher, 'ai' = LLM fallback, null = nothing
+  const [suggestionState, setSuggestionState] = useState<{
+    tagId: number | null;
+    source: "alias" | "ai" | null;
+  }>({ tagId: null, source: null });
+
+  useEffect(() => {
+    if (!debouncedDesc.trim()) {
+      setSuggestionState({ tagId: null, source: null });
+      return;
+    }
+
+    // 1) Try the synchronous keyword matcher first (free + instant)
+    const aliasHit = matchTagFromDescription(debouncedDesc, tags)?.id ?? null;
+    if (aliasHit != null) {
+      setSuggestionState({ tagId: aliasHit, source: "alias" });
+      return;
+    }
+
+    // 2) Fallback to AI for descriptions the aliases didn't catch.
+    //    Race-guarded: ignore the result if the description changed mid-flight.
+    let cancelled = false;
+    (async () => {
+      const choices = tags.map((t) => ({ id: t.id, name: t.name }));
+      const result = await suggestTagFromAI(debouncedDesc, choices);
+      if (cancelled) return;
+      if (result.tagId != null) {
+        setSuggestionState({ tagId: result.tagId, source: "ai" });
+      } else {
+        setSuggestionState({ tagId: null, source: null });
+      }
+    })();
+    return () => { cancelled = true; };
   }, [debouncedDesc, tags]);
+
+  const suggestedTagId = suggestionState.tagId;
+  const suggestionSource = suggestionState.source;
 
   // When a suggestion appears, surface the picker so the user can see/confirm it.
   useEffect(() => {
@@ -71,6 +122,8 @@ export function AddExpenseDrawer({ open, onClose, paymentMethods, tags }: Props)
       setExpanded(false);
       setDescription("");
       setDebouncedDesc("");
+      setTripId("none");
+      setCurrency("USD");
       toastedState.current = undefined;
       setFormKey((k) => k + 1);
     }
@@ -112,9 +165,11 @@ export function AddExpenseDrawer({ open, onClose, paymentMethods, tags }: Props)
           <div className="flex gap-2 items-center">
             <select
               name="currency"
+              value={currency}
+              onChange={(e) => setCurrency(e.target.value)}
               className="bg-accent-purple/15 border border-accent-purple/30 text-accent-purple-light rounded-xl px-3 py-2.5 text-sm font-semibold"
             >
-              {["USD","NIO","GTQ","MXN","EUR","GBP","CAD"].map((c) => (
+              {CURRENCIES.map((c) => (
                 <option key={c} value={c}>{c}</option>
               ))}
             </select>
@@ -128,6 +183,28 @@ export function AddExpenseDrawer({ open, onClose, paymentMethods, tags }: Props)
               className="flex-1 bg-bg-deep border-accent-purple/20 text-foreground text-xl font-bold"
             />
           </div>
+
+          {/* trip picker — visible only when there's at least one active trip */}
+          {trips.length > 0 && (
+            <div className="space-y-1">
+              <p className="text-muted-base text-[10px] uppercase tracking-widest">
+                On a trip? <span className="normal-case text-muted-base font-normal">
+                  — picks the trip and defaults the currency. You can still pay in USD.
+                </span>
+              </p>
+              <select
+                name="tripId"
+                value={tripId}
+                onChange={(e) => setTripId(e.target.value)}
+                className="w-full bg-bg-deep border border-accent-purple/20 text-foreground rounded-lg px-3 py-2 text-sm"
+              >
+                <option value="none">— No trip —</option>
+                {trips.map((t) => (
+                  <option key={t.id} value={t.id}>{t.name} ({t.primaryCurrency})</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* description */}
           <Input
@@ -169,8 +246,27 @@ export function AddExpenseDrawer({ open, onClose, paymentMethods, tags }: Props)
               </div>
               <div className="space-y-1">
                 <p className="text-muted-base text-[10px] uppercase tracking-widest">Category & Bucket</p>
-                <TagPickerWrapper tags={tags} suggestedTagId={suggestedTagId} />
+                <TagPickerWrapper
+                  tags={tags}
+                  suggestedTagId={suggestedTagId}
+                  suggestionSource={suggestionSource}
+                />
               </div>
+              {bills.length > 0 && (
+                <div className="space-y-1">
+                  <p className="text-muted-base text-[10px] uppercase tracking-widest">Pays a bill? (optional)</p>
+                  <select
+                    name="billId"
+                    defaultValue="none"
+                    className="w-full bg-bg-deep border border-accent-purple/20 text-foreground rounded-lg px-3 py-2 text-sm"
+                  >
+                    <option value="none">— None —</option>
+                    {bills.map((b) => (
+                      <option key={b.id} value={b.id}>{b.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
           )}
 
