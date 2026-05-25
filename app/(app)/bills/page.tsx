@@ -14,6 +14,7 @@ import { PaidBillsList } from "@/components/bills/paid-bills-list";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
+import { getEffectiveDueDay } from "@/lib/bill-dates";
 
 type BillStatus = "overdue" | "due-soon" | "upcoming" | "paid";
 
@@ -61,20 +62,9 @@ function getBillStatus(b: UserBill): BillStatus {
   return "upcoming";
 }
 
-function getDueDay(b: UserBill, todayMonth: number): number {
-  if (b.frequency === "quarterly") {
-    if (!b.quarterlyDates) return b.dueDay;
-    const dates: { month: number; day: number }[] = JSON.parse(b.quarterlyDates);
-    const thisMonth = dates.find((d) => d.month === todayMonth);
-    return thisMonth?.day ?? b.dueDay;
-  }
-  if (b.frequency === "yearly") return b.renewalDay ?? b.dueDay;
-  return b.dueDay;
-}
-
 /** Days until the bill is due this month. Negative = overdue. Used for sorting. */
 function daysUntilDue(b: UserBill, todayDay: number, todayMonth: number): number {
-  return getDueDay(b, todayMonth) - todayDay;
+  return (getEffectiveDueDay(b, todayMonth) ?? b.dueDay) - todayDay;
 }
 
 const TABS = [
@@ -132,7 +122,7 @@ export default async function BillsPage({
   const withStatus = billsList.map((b) => ({
     ...b,
     computedStatus:  getBillStatus(b) as BillStatus,
-    effectiveDueDay: getDueDay(b, todayMonth),
+    effectiveDueDay: getEffectiveDueDay(b, todayMonth) ?? b.dueDay,
     daysUntilDue:    daysUntilDue(b, todayDay, todayMonth),
   }));
 

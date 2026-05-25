@@ -3,6 +3,7 @@ import { getDb, bills, billPayments, creditCards, expenses } from "@/lib/db";
 import { and, eq, asc, desc } from "drizzle-orm";
 import { requireSession } from "@/lib/auth/session";
 import { revalidatePath } from "next/cache";
+import { getEffectiveDueDay } from "@/lib/bill-dates";
 
 export async function getUserBills() {
   const user = await requireSession();
@@ -117,6 +118,9 @@ function parseBillFormData(formData: FormData) {
     type,
     creditCardId,
     reminderDaysBefore: parseInt((formData.get("reminderDaysBefore") as string) || "3"),
+    // Only meaningful when a credit card is tied; harmless when not (will never trigger reconciliation).
+    autoCharge: formData.get("autoCharge") === "on" || formData.get("autoCharge") === "true",
+    accountNumber: (formData.get("accountNumber") as string)?.trim() || null,
   };
 }
 
@@ -323,4 +327,104 @@ export async function deleteBillPayment(paymentId: number): Promise<{ success: b
   } catch (e) {
     return { success: false, message: e instanceof Error ? e.message : "Failed to remove payment" };
   }
+}
+
+/**
+ * For each active auto-charge bill whose effective due day has been reached this
+ * month and which doesn't yet have a bill_payment for the month, post the
+ * expense + bill_payment. Idempotent — safe to call on every request.
+ *
+ * Returns the count of bills materialized.
+ */
+export async function reconcileAutoChargedBills(
+  monthId: number,
+  year: number,
+  month: number,
+): Promise<number> {
+  const user = await requireSession();
+  const userId = user.id!;
+  const db = getDb();
+
+  // Pull all active auto-charge bills with a credit card attached. Cheap query.
+  const candidates = await db.select().from(bills).where(and(
+    eq(bills.userId, userId),
+    eq(bills.active, true),
+    eq(bills.autoCharge, true),
+  ));
+  if (candidates.length === 0) return 0;
+
+  const today = new Date();
+  const isCurrentMonth = today.getFullYear() === year && today.getMonth() + 1 === month;
+  const todayDay = today.getDate();
+
+  let materializedCount = 0;
+  for (const bill of candidates) {
+    if (!bill.creditCardId) continue;
+
+    const effectiveDay = getEffectiveDueDay(bill, month);
+    if (effectiveDay == null) continue;
+
+    // Only post when we've actually reached the due day in the current month.
+    // For past months we always post (the charge has already happened by now).
+    // For future months we never post.
+    if (today.getFullYear() < year || (today.getFullYear() === year && today.getMonth() + 1 < month)) {
+      continue;
+    }
+    if (isCurrentMonth && effectiveDay > todayDay) continue;
+
+    // Dedupe: skip if a bill_payment already exists for this (bill, month).
+    const [existing] = await db.select({ id: billPayments.id }).from(billPayments)
+      .where(and(
+        eq(billPayments.userId, userId),
+        eq(billPayments.billId, bill.id),
+        eq(billPayments.monthId, monthId),
+      ))
+      .limit(1);
+    if (existing) continue;
+
+    // Date the expense to the effective due day, clamped to today if needed (avoid future dates).
+    const dayClamped = isCurrentMonth ? Math.min(effectiveDay, todayDay) : effectiveDay;
+    const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(dayClamped).padStart(2, "0")}`;
+
+    const [card] = await db.select().from(creditCards)
+      .where(eq(creditCards.id, bill.creditCardId))
+      .limit(1);
+    const paymentMethod: "credit_card" | "debit" = card?.type === "credit" ? "credit_card" : "debit";
+
+    await db.insert(billPayments).values({
+      userId,
+      billId: bill.id,
+      monthId,
+      amount: bill.amount,
+      date: dateStr,
+      paidLate: false,
+      note: "Auto-charged",
+    });
+
+    await db.insert(expenses).values({
+      userId,
+      monthId,
+      amount: bill.amount,
+      currency: "USD",
+      amountUsd: bill.amount,
+      exchangeRate: 1,
+      description: bill.name,
+      date: dateStr,
+      paymentMethod,
+      paymentMethodId: bill.creditCardId,
+      bucket: "bills",
+      tagId: null,
+      tripId: null,
+      billId: bill.id,
+    });
+
+    materializedCount++;
+  }
+
+  // NOTE: deliberately no revalidatePath() here. This function is invoked from
+  // a Server Component (the app layout), and revalidatePath during render is
+  // forbidden in Next.js 16. The layout's own downstream queries see the newly
+  // materialized rows in the same request because they run after this call.
+  // Subsequent user-triggered mutations (Mark Paid, delete) revalidate themselves.
+  return materializedCount;
 }

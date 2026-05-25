@@ -1,5 +1,9 @@
+import Link from "next/link";
+import { Pencil, Trash2 } from "lucide-react";
 import { BILL_ICON } from "@/lib/icons";
 import { MarkPaidButton } from "@/components/bills/mark-paid-button";
+import { FireAndForgetButton } from "@/components/ui/fire-and-forget-button";
+import { deleteBill } from "@/lib/actions/bills";
 
 type Tone = "bad" | "warn" | "good" | "neutral";
 
@@ -140,7 +144,15 @@ export function BillsGroup({ label, bills, tone, emptyHide = false, dayOfMonth, 
                 <IconCmp size={15} />
               </div>
 
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <Link
+                href={`/bills/${b.id}/edit`}
+                style={{
+                  flex: 1,
+                  minWidth: 0,
+                  textDecoration: "none",
+                  color: "inherit",
+                }}
+              >
                 <div
                   style={{
                     fontSize: 12.5,
@@ -167,7 +179,7 @@ export function BillsGroup({ label, bills, tone, emptyHide = false, dayOfMonth, 
                     ? `${daysLate}d late`
                     : `due day ${b.dueDay}`}
                 </div>
-              </div>
+              </Link>
 
               <div
                 style={{
@@ -188,6 +200,30 @@ export function BillsGroup({ label, bills, tone, emptyHide = false, dayOfMonth, 
               {!isPaid && monthId !== undefined && (tone === "bad" || tone === "warn") && (
                 <MarkPaidButton billId={b.id} monthId={monthId} />
               )}
+
+              {/* Edit + Delete affordances on every bill row */}
+              <Link
+                href={`/bills/${b.id}/edit`}
+                aria-label={`Edit ${b.name}`}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: 6,
+                  color: "#8a7da8",
+                  textDecoration: "none",
+                  flexShrink: 0,
+                }}
+              >
+                <Pencil size={13} />
+              </Link>
+              <FireAndForgetButton
+                action={deleteBill.bind(null, b.id)}
+                aria-label={`Delete ${b.name}`}
+                className="p-1.5 text-muted-base hover:text-red-400 transition-colors shrink-0"
+              >
+                <Trash2 size={13} />
+              </FireAndForgetButton>
             </div>
           );
         })}

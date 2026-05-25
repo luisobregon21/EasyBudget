@@ -134,6 +134,8 @@ export const bills = pgTable("bills", {
   creditCardId:       integer("credit_card_id").references(() => creditCards.id, { onDelete: "set null" }),
   reminderDaysBefore: integer("reminder_days_before").notNull().default(3),
   active:             boolean("active").notNull().default(true),
+  autoCharge:         boolean("auto_charge").notNull().default(false),  // true = subscription auto-billed on due day; we materialize expense + bill_payment automatically
+  accountNumber:      text("account_number"),                            // nullable — optional reference (e.g. "Acct #123-456" for a utility)
 });
 
 // NEW: recurring income templates

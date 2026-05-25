@@ -39,6 +39,8 @@ export default async function EditBillPage({ params }: { params: Promise<{ id: s
           type: bill.type,
           creditCardId: bill.creditCardId,
           reminderDaysBefore: bill.reminderDaysBefore,
+          autoCharge: bill.autoCharge,
+          accountNumber: bill.accountNumber,
         }}
       />
     </div>

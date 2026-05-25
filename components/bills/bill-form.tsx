@@ -28,6 +28,8 @@ interface BillFormProps {
     type?: string;
     creditCardId?: number | null;
     reminderDaysBefore?: number;
+    autoCharge?: boolean;
+    accountNumber?: string | null;
   };
   submitLabel?: string;
 }
@@ -177,6 +179,34 @@ export function BillForm({ creditCards, action, defaultValues = {}, submitLabel 
           </select>
         </div>
       )}
+
+      <label className="flex items-start gap-2 cursor-pointer">
+        <input
+          type="checkbox"
+          name="autoCharge"
+          defaultChecked={defaultValues.autoCharge ?? false}
+          className="mt-0.5 accent-accent-purple-light"
+        />
+        <span className="text-sm text-foreground">
+          Auto-charged on due day
+          <span className="block text-xs text-muted-base">
+            Use for fixed-amount subscriptions billed to your card (Netflix, Spotify, wifi).
+            Leave OFF for variable bills (water, electric) — log those manually when the statement arrives.
+          </span>
+        </span>
+      </label>
+
+      <div className="space-y-1">
+        <Label className="text-muted-base text-[10px] uppercase tracking-widest">
+          Account # <span className="normal-case text-muted-base font-normal">— optional</span>
+        </Label>
+        <Input
+          name="accountNumber"
+          defaultValue={defaultValues.accountNumber ?? ""}
+          placeholder="e.g. 123-456-789"
+          className="bg-bg-deep border-accent-purple/20 text-foreground"
+        />
+      </div>
 
       <div className="space-y-1">
         <Label className="text-muted-base text-[10px] uppercase tracking-widest">Remind me (days before)</Label>
