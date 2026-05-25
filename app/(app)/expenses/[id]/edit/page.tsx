@@ -1,6 +1,7 @@
 import { getExpense, updateExpense } from "@/lib/actions/expenses";
 import { getUserTags } from "@/lib/actions/tags";
 import { getCreditCards } from "@/lib/actions/credit-cards";
+import { getUserBills } from "@/lib/actions/bills";
 import { notFound } from "next/navigation";
 import { PaymentMethodPicker } from "@/components/expenses/payment-method-picker";
 import { CurrencyPicker } from "@/components/expenses/currency-picker";
@@ -16,10 +17,11 @@ export default async function EditExpensePage({ params }: { params: Promise<{ id
   const { id } = await params;
   const expenseId = parseInt(id);
 
-  const [expense, tags, paymentMethods] = await Promise.all([
+  const [expense, tags, paymentMethods, bills] = await Promise.all([
     getExpense(expenseId),
     getUserTags(),
     getCreditCards(),
+    getUserBills(),
   ]);
 
   if (!expense) notFound();
@@ -89,6 +91,25 @@ export default async function EditExpensePage({ params }: { params: Promise<{ id
           <Label className="text-muted-base text-[10px] uppercase tracking-widest">Paid with</Label>
           <PaymentMethodPicker methods={paymentMethods} defaultValue={defaultPaymentMethod} />
         </div>
+
+        {bills.length > 0 && (
+          <div className="space-y-1">
+            <Label htmlFor="billId" className="text-muted-base text-[10px] uppercase tracking-widest">
+              Pays a bill? <span className="normal-case text-muted-base font-normal">— optional, marks bill paid for the month</span>
+            </Label>
+            <select
+              id="billId"
+              name="billId"
+              defaultValue={expense.billId ? String(expense.billId) : "none"}
+              className="w-full bg-bg-deep border border-accent-purple/20 text-foreground rounded-lg px-3 py-2 text-sm"
+            >
+              <option value="none">— None —</option>
+              {bills.map((b) => (
+                <option key={b.id} value={b.id}>{b.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <Button type="submit" className="w-full bg-gradient-brand text-white font-bold py-3 rounded-xl">
           Save Changes

@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 interface BucketItem {
   key: "savings" | "bills" | "wants";
   name: string;
@@ -9,6 +11,9 @@ interface BucketItem {
 
 interface Props {
   buckets: BucketItem[];
+  /** Optional context for drill-down link (defaults to current month if omitted) */
+  year?: number;
+  month?: number;
 }
 
 const fmtCompact = (n: number) =>
@@ -20,7 +25,14 @@ const BUCKET_COLOR: Record<BucketItem["key"], string> = {
   wants:   "#a78bfa",  // violet
 };
 
-export function AllocationGrid({ buckets }: Props) {
+export function AllocationGrid({ buckets, year, month }: Props) {
+  function drillHref(key: BucketItem["key"]) {
+    const sp = new URLSearchParams({ bucket: key });
+    if (year)  sp.set("year",  String(year));
+    if (month) sp.set("month", String(month));
+    return `/expenses?${sp.toString()}`;
+  }
+
   return (
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
       {buckets.map((b) => {
@@ -36,14 +48,20 @@ export function AllocationGrid({ buckets }: Props) {
         const showGhost  = expected > b.spent && ghostWidth > 0;
 
         return (
-          <div
+          <Link
             key={b.key}
+            href={drillHref(b.key)}
             style={{
+              display: "block",
               background: "#181028",
               border: "1px solid rgba(167,139,250,0.13)",
               borderRadius: 14,
               padding: 11,
+              textDecoration: "none",
+              color: "inherit",
+              transition: "background 0.15s",
             }}
+            className="hover:bg-white/[0.04]"
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 0.8, color, textTransform: "uppercase" }}>
@@ -130,7 +148,7 @@ export function AllocationGrid({ buckets }: Props) {
               <span style={{ color: "#8a7da8" }}>exp </span>
               {fmtCompact(expected)}
             </div>
-          </div>
+          </Link>
         );
       })}
     </div>

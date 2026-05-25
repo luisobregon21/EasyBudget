@@ -100,12 +100,14 @@ export default async function HomePage({
 
   // map expenses to RecentList shape
   const recentForList = recentExpenses.map((e) => ({
-    id:       e.id,
-    name:     e.description,
-    tagName:  e.tagName,
-    category: null,
-    amount:   e.amountUsd ?? e.amount,
-    date:     e.date,
+    id:        e.id,
+    name:      e.description,
+    tagName:   e.tagName,
+    category:  null,
+    amount:    e.amountUsd ?? e.amount,    // big number (USD-normalized for Recent)
+    amountRaw: e.amount,                    // local-currency amount as entered
+    currency:  e.currency,
+    date:      e.date,
   }));
 
   // map expenses to ExpensesTab shape
@@ -150,7 +152,7 @@ export default async function HomePage({
               dayPct={pctThroughMonth}
               onTrack={onTrack}
             />
-            <AllocationGrid buckets={buckets} />
+            <AllocationGrid buckets={buckets} year={year} month={month} />
             <DailyPaceCard
               dailySpend={dailySpend}
               daysInMonth={daysInMonth}
