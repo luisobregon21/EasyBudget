@@ -18,12 +18,15 @@ export function TagPickerWrapper({
   defaultTagId,
   defaultBucket,
   suggestedTagId,
+  suggestionSource,
 }: {
   tags: Tag[];
   defaultTagId?: number | null;
   defaultBucket?: Bucket;
   /** Optional: pre-select this tag if the user hasn't already chosen one. */
   suggestedTagId?: number | null;
+  /** Where the suggestion came from — drives the label */
+  suggestionSource?: "alias" | "ai" | null;
 }) {
   const [bucket, setBucket] = useState<Bucket>(defaultBucket ?? "wants");
   const showSuggestion = suggestedTagId != null && suggestedTagId !== defaultTagId;
@@ -32,7 +35,7 @@ export function TagPickerWrapper({
     <div className="space-y-3">
       {showSuggestion && (
         <p className="text-[10px] text-amber-400/80">
-          Suggested from description — change if it&apos;s wrong.
+          {suggestionSource === "ai" ? "AI suggested" : "Suggested from description"} — change if it&apos;s wrong.
         </p>
       )}
       <TagPicker

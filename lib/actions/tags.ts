@@ -3,6 +3,8 @@ import { getDb, tags, expenses } from "@/lib/db";
 import { and, eq, sql, isNull } from "drizzle-orm";
 import { requireSession } from "@/lib/auth/session";
 import { revalidatePath } from "next/cache";
+import { generateText, Output } from "ai";
+import { z } from "zod";
 
 type Bucket = "savings" | "bills" | "wants";
 
@@ -153,4 +155,73 @@ export async function countExpensesUsingTag(tagId: number): Promise<number> {
     .from(expenses)
     .where(and(eq(expenses.tagId, tagId), eq(expenses.userId, user.id!)));
   return Number(row?.count ?? 0);
+}
+
+// ── AI tag suggestion ───────────────────────────────────────────────────────────
+
+/**
+ * Fallback for the alias-based matcher: ask an LLM which existing tag fits the
+ * description best. Returns null if the model declines or if AI Gateway isn't
+ * configured for this environment.
+ *
+ * Gracefully degrades: missing AI_GATEWAY_API_KEY = no-op (no throw).
+ */
+export async function suggestTagFromAI(
+  description: string,
+  tagChoices: { id: number; name: string }[],
+): Promise<{ tagId: number | null }> {
+  // Feature-flag off for now — set ENABLE_AI_TAGS=1 to re-enable.
+  if (process.env.ENABLE_AI_TAGS !== "1") return { tagId: null };
+
+  // Cheap guards: skip noise, runaway pastes, and unconfigured envs.
+  const trimmed = description.trim();
+  if (trimmed.length < 3 || trimmed.length > 200) return { tagId: null };
+  if (tagChoices.length === 0) return { tagId: null };
+  // Allow either path: explicit API key, Vercel runtime (auto-OIDC), or a
+  // pulled OIDC token in .env.local for local dev.
+  if (
+    !process.env.AI_GATEWAY_API_KEY &&
+    !process.env.VERCEL &&
+    !process.env.VERCEL_OIDC_TOKEN
+  ) {
+    return { tagId: null };
+  }
+
+  // Require an authenticated user to use this server action.
+  await requireSession();
+
+  const allowedIds = tagChoices.map((t) => t.id);
+  const tagList = tagChoices.map((t) => `- ${t.id}: ${t.name}`).join("\n");
+
+  try {
+    const { output } = await generateText({
+      // Cheap, fast model available on the Vercel AI Gateway.
+      // Swap to another `provider/model` id if the structured-output call ever
+      // starts failing — surface the error via the console.error below.
+      model: "google/gemma-4-26b-a4b-it",
+      output: Output.object({
+        schema: z.object({
+          tagId: z.number().int().nullable().describe(
+            "The id of the best-matching tag, or null if none of the tags fit reasonably well.",
+          ),
+        }),
+      }),
+      system:
+        "You assign budget tags to short expense descriptions. " +
+        "Pick exactly ONE tag id from the provided list whose meaning best matches the description. " +
+        "Be strict: if no tag clearly fits, return null. " +
+        "Examples: 'grocery run' → Food; 'Crunchyroll' → Subscriptions; 'energy drink' → Food; " +
+        "'gas station' → Transport; 'random gift' → null (too vague).",
+      prompt: `Description: ${trimmed}\n\nAvailable tags:\n${tagList}`,
+    });
+
+    if (output.tagId == null) return { tagId: null };
+    if (!allowedIds.includes(output.tagId)) return { tagId: null };
+    return { tagId: output.tagId };
+  } catch (e) {
+    // Surface the failure in dev so we can tell config issues (missing OIDC
+    // scopes, gateway not enabled, wrong model id) from "model said null".
+    console.error("[suggestTagFromAI] gateway call failed:", e instanceof Error ? e.message : e);
+    return { tagId: null };
+  }
 }
