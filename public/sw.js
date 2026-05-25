@@ -1,4 +1,4 @@
-const CACHE = "easybudget-v2";
+const CACHE = "easybudget-v3";
 const SHELL = ["/", "/manifest.json"];
 
 self.addEventListener("install", (e) => {
@@ -16,11 +16,19 @@ self.addEventListener("activate", (e) => {
 });
 
 self.addEventListener("fetch", (e) => {
-  if (e.request.method !== "GET") return;
-  if (e.request.mode === "navigate") return; // let browser handle navigations and auth redirects
+  // Don't intercept anything we can't safely replay.
+  if (e.request.method !== "GET") return;                  // POSTs (form actions) — let the browser handle
+  if (e.request.mode === "navigate") return;               // page navigations + auth redirects
   const url = new URL(e.request.url);
-  if (url.pathname.startsWith("/_next/")) return;
+  if (url.origin !== self.location.origin) return;         // cross-origin requests (AI Gateway, etc.)
+  if (url.pathname.startsWith("/_next/")) return;          // Next.js dev/runtime assets
+  if (url.pathname.startsWith("/api/"))   return;          // route handlers (avatar, receipts) — never cache
+  if (url.search.includes("_rsc"))        return;          // React Server Component payloads
+
   e.respondWith(
-    caches.match(e.request).then((cached) => cached ?? fetch(e.request))
+    caches
+      .match(e.request)
+      .then((cached) => cached || fetch(e.request))
+      .catch(() => new Response("", { status: 504, statusText: "Network error" })),
   );
 });
