@@ -1,5 +1,6 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { BottomNav } from "./bottom-nav";
 import { Sidebar } from "./sidebar";
 import { DashboardTabs } from "./dashboard-tabs";
@@ -20,7 +21,26 @@ interface Props {
 
 export function AppShell({ children, paymentMethods, tags, bills, trips }: Props) {
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [initialTripId, setInitialTripId] = useState<number | null>(null);
   const openDrawer = () => setDrawerOpen(true);
+
+  // URL-triggered drawer: `?addExpense=1[&trip=N]` opens the drawer and optionally
+  // pre-selects a trip. Used by trip pages to launch an Add Expense scoped to that trip.
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    if (searchParams.get("addExpense") !== "1") return;
+    const tripParam = searchParams.get("trip");
+    setInitialTripId(tripParam ? parseInt(tripParam) : null);
+    setDrawerOpen(true);
+    // Clean the query so refreshing doesn't keep re-opening it.
+    const next = new URLSearchParams(searchParams);
+    next.delete("addExpense");
+    next.delete("trip");
+    const q = next.toString();
+    router.replace(q ? `${pathname}?${q}` : pathname);
+  }, [searchParams, pathname, router]);
 
   return (
     <>
@@ -37,11 +57,12 @@ export function AppShell({ children, paymentMethods, tags, bills, trips }: Props
       <BottomNav onAddExpense={openDrawer} />
       <AddExpenseDrawer
         open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
+        onClose={() => { setDrawerOpen(false); setInitialTripId(null); }}
         paymentMethods={paymentMethods}
         tags={tags}
         bills={bills}
         trips={trips}
+        initialTripId={initialTripId}
       />
     </>
   );

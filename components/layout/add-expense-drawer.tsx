@@ -33,9 +33,11 @@ interface Props {
   tags: Tag[];
   bills: BillOption[];
   trips: TripOption[];
+  /** When set, the trip picker is pre-filled with this trip on open. */
+  initialTripId?: number | null;
 }
 
-export function AddExpenseDrawer({ open, onClose, paymentMethods, tags, bills, trips }: Props) {
+export function AddExpenseDrawer({ open, onClose, paymentMethods, tags, bills, trips, initialTripId }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [formKey, setFormKey] = useState(0);
   const [description, setDescription] = useState("");
@@ -52,6 +54,13 @@ export function AddExpenseDrawer({ open, onClose, paymentMethods, tags, bills, t
     const trip = trips.find((t) => String(t.id) === tripId);
     if (trip) setCurrency(trip.primaryCurrency);
   }, [tripId, trips]);
+
+  // Apply caller-provided initialTripId when the drawer opens (e.g. trip page → Add Expense).
+  useEffect(() => {
+    if (open && initialTripId != null) {
+      setTripId(String(initialTripId));
+    }
+  }, [open, initialTripId]);
 
   // Debounce the description so we don't run the matcher on every keystroke
   useEffect(() => {

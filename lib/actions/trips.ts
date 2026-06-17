@@ -79,6 +79,31 @@ export async function createTrip(prevState: unknown, formData: FormData): Promis
   redirect(`/trips/${trip.id}`);
 }
 
+export async function updateTripDetails(
+  tripId: number,
+  prevState: unknown,
+  formData: FormData,
+): Promise<{ success: boolean; message: string }> {
+  try {
+    const user = await requireSession();
+    const db = getDb();
+    const name = ((formData.get("name") as string) ?? "").trim();
+    const destination = ((formData.get("destination") as string) ?? "").trim();
+    const primaryCurrency = ((formData.get("primaryCurrency") as string) ?? "USD").trim().toUpperCase();
+    if (!name) return { success: false, message: "Name required." };
+    if (!destination) return { success: false, message: "Destination required." };
+    if (!primaryCurrency) return { success: false, message: "Currency required." };
+
+    await db.update(trips).set({ name, destination, primaryCurrency })
+      .where(and(eq(trips.id, tripId), eq(trips.userId, user.id!)));
+    revalidatePath("/trips");
+    revalidatePath(`/trips/${tripId}`);
+    return { success: true, message: "Trip updated" };
+  } catch (e) {
+    return { success: false, message: e instanceof Error ? e.message : "Failed to update trip" };
+  }
+}
+
 export async function updateTripDates(tripId: number, prevState: unknown, formData: FormData): Promise<{ success: boolean; message: string }> {
   try {
     const user = await requireSession();
