@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Pencil, Trash2 } from "lucide-react";
 import { BILL_ICON } from "@/lib/icons";
 import { MarkPaidButton } from "@/components/bills/mark-paid-button";
+import { SkipButton } from "@/components/bills/skip-button";
 import { FireAndForgetButton } from "@/components/ui/fire-and-forget-button";
 import { deleteBill } from "@/lib/actions/bills";
 
@@ -195,10 +196,14 @@ export function BillsGroup({ label, bills, tone, emptyHide = false, dayOfMonth, 
                 {fmtDec(b.amount)}
               </div>
 
-              {/* Mark Paid only on bills that are actually due (overdue + this week);
-                  upcoming/later bills aren't payable yet — they haven't reached their due date. */}
-              {!isPaid && monthId !== undefined && (tone === "bad" || tone === "warn") && (
-                <MarkPaidButton billId={b.id} monthId={monthId} />
+              {/* Mark Paid + Skip on all active (non-paid) bill rows.
+                  Early payments are common (autopay landing days before due),
+                  and Skip lets the user pause a subscription/utility for the month. */}
+              {!isPaid && monthId !== undefined && (
+                <>
+                  <MarkPaidButton billId={b.id} monthId={monthId} />
+                  <SkipButton billId={b.id} monthId={monthId} />
+                </>
               )}
 
               {/* Edit + Delete affordances on every bill row */}

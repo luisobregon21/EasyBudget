@@ -115,8 +115,12 @@ export default async function BillsPage({
   const todayDay   = new Date().getDate();
   const todayMonth = new Date().getMonth() + 1;
 
-  // Paid-this-month bill ids — exclude these from overdue/due-soon/upcoming groups
-  const paidBillIds = new Set(paidBillPayments.map((p) => p.billId));
+  // Split paid vs skipped: both block the bill from showing in the active groups,
+  // but skipped bills get their own section so the user remembers what's paused.
+  const truePaidPayments    = paidBillPayments.filter((p) => !p.skipped);
+  const skippedPayments     = paidBillPayments.filter((p) =>  p.skipped);
+  const handledBillIds      = new Set(paidBillPayments.map((p) => p.billId));
+  const skippedBillIds      = new Set(skippedPayments.map((p) => p.billId));
 
   // Classify bills
   const withStatus = billsList.map((b) => ({
@@ -130,13 +134,13 @@ export default async function BillsPage({
   const byDueAsc = <T extends { daysUntilDue: number }>(a: T, b: T) => a.daysUntilDue - b.daysUntilDue;
 
   const overdueBills  = withStatus
-    .filter((b) => b.computedStatus === "overdue"  && !paidBillIds.has(b.id))
+    .filter((b) => b.computedStatus === "overdue"  && !handledBillIds.has(b.id))
     .sort(byDueAsc);
   const dueSoonBills  = withStatus
-    .filter((b) => b.computedStatus === "due-soon" && !paidBillIds.has(b.id))
+    .filter((b) => b.computedStatus === "due-soon" && !handledBillIds.has(b.id))
     .sort(byDueAsc);
   const upcomingBills = withStatus
-    .filter((b) => b.computedStatus === "upcoming" && !paidBillIds.has(b.id))
+    .filter((b) => b.computedStatus === "upcoming" && !handledBillIds.has(b.id))
     .sort(byDueAsc);
 
   // BillsHero needs BillMarker[]
@@ -219,13 +223,22 @@ export default async function BillsPage({
             <BillsGroup label="Overdue"    bills={toGroupBills(overdueBills)}  tone="bad"     emptyHide dayOfMonth={dayOfMonth} monthId={monthData.id} />
             <BillsGroup label="This Week"  bills={toGroupBills(dueSoonBills)}  tone="warn"    emptyHide dayOfMonth={dayOfMonth} monthId={monthData.id} />
             <BillsGroup label="Upcoming"   bills={toGroupBills(upcomingBills)} tone="neutral" emptyHide dayOfMonth={dayOfMonth} monthId={monthData.id} />
-            {paidBillPayments.length > 0 && (
+            {truePaidPayments.length > 0 && (
               <>
                 <div style={{ padding: "0 4px 6px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: "#34d399", textTransform: "uppercase" }}>Paid</span>
-                  <span style={{ fontSize: 10, color: "#5e5279", fontFamily: "var(--font-geist-mono, monospace)" }}>{paidBillPayments.length} paid</span>
+                  <span style={{ fontSize: 10, color: "#5e5279", fontFamily: "var(--font-geist-mono, monospace)" }}>{truePaidPayments.length} paid</span>
                 </div>
-                <PaidBillsList payments={paidBillPayments} />
+                <PaidBillsList payments={truePaidPayments} />
+              </>
+            )}
+            {skippedPayments.length > 0 && (
+              <>
+                <div style={{ padding: "0 4px 6px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: "#8a7da8", textTransform: "uppercase" }}>Skipped this month</span>
+                  <span style={{ fontSize: 10, color: "#5e5279", fontFamily: "var(--font-geist-mono, monospace)" }}>{skippedPayments.length} skipped</span>
+                </div>
+                <PaidBillsList payments={skippedPayments} variant="skipped" />
               </>
             )}
             {billsList.length === 0 && (

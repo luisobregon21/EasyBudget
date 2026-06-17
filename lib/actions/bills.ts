@@ -259,6 +259,7 @@ export async function getBillPaymentsForMonth(monthId: number) {
       amount:   billPayments.amount,
       date:     billPayments.date,
       paidLate: billPayments.paidLate,
+      skipped:  billPayments.skipped,
       dueDay:   bills.dueDay,
       note:     billPayments.note,
     })
@@ -326,6 +327,64 @@ export async function deleteBillPayment(paymentId: number): Promise<{ success: b
     return { success: true, message: "Payment removed" };
   } catch (e) {
     return { success: false, message: e instanceof Error ? e.message : "Failed to remove payment" };
+  }
+}
+
+/**
+ * Mark a bill as skipped for a given month. Idempotent: re-skipping is a no-op.
+ * Skipped rows have amount=0 so they don't pollute spend totals, and they block
+ * auto-charge reconciliation from posting an expense for that bill+month.
+ */
+export async function skipBillForMonth(
+  billId: number,
+  monthId: number,
+): Promise<{ success: boolean; message: string }> {
+  try {
+    const user = await requireSession();
+    const db = getDb();
+    const userId = user.id!;
+
+    const [bill] = await db.select({ name: bills.name })
+      .from(bills)
+      .where(and(eq(bills.id, billId), eq(bills.userId, userId)))
+      .limit(1);
+    if (!bill) return { success: false, message: "Bill not found" };
+
+    const [existing] = await db.select({ id: billPayments.id, skipped: billPayments.skipped })
+      .from(billPayments)
+      .where(and(
+        eq(billPayments.userId, userId),
+        eq(billPayments.billId, billId),
+        eq(billPayments.monthId, monthId),
+      ))
+      .limit(1);
+
+    if (existing) {
+      // Already has a payment for this month — only convert to skipped if
+      // it's not already a (real) payment.
+      if (existing.skipped) {
+        return { success: true, message: `${bill.name} already skipped` };
+      }
+      return { success: false, message: `${bill.name} already has a payment this month` };
+    }
+
+    const today = new Date().toISOString().slice(0, 10);
+    await db.insert(billPayments).values({
+      userId,
+      billId,
+      monthId,
+      amount: 0,
+      date: today,
+      paidLate: false,
+      skipped: true,
+      note: null,
+    });
+
+    revalidatePath("/bills");
+    revalidatePath("/");
+    return { success: true, message: `${bill.name} skipped this month` };
+  } catch (e) {
+    return { success: false, message: e instanceof Error ? e.message : "Failed to skip bill" };
   }
 }
 

@@ -161,7 +161,9 @@ export const incomeEntries = pgTable("income_entries", {
   arrivedDate:  date("arrived_date"),
 });
 
-// NEW: bill payment records (per-month, per-bill)
+// NEW: bill payment records (per-month, per-bill).
+// A row with skipped=true represents an intentional skip for the month
+// (paused subscription, deferred utility, etc) — amount is 0, no expense posted.
 export const billPayments = pgTable("bill_payments", {
   id:        serial("id").primaryKey(),
   userId:    text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
@@ -170,6 +172,7 @@ export const billPayments = pgTable("bill_payments", {
   amount:    real("amount").notNull(),
   date:      date("date").notNull(),
   paidLate:  boolean("paid_late").notNull().default(false),
+  skipped:   boolean("skipped").notNull().default(false),
   note:      text("note"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
