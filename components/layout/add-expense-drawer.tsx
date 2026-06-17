@@ -216,6 +216,17 @@ export function AddExpenseDrawer({ open, onClose, paymentMethods, tags, bills, t
             className="bg-bg-deep border-accent-purple/20 text-foreground"
           />
 
+          {/* date — always visible; defaults to today, easy to change for past or future entries */}
+          <div className="space-y-1">
+            <p className="text-muted-base text-[10px] uppercase tracking-widest">Date</p>
+            <Input
+              name="date"
+              type="date"
+              defaultValue={today}
+              className="bg-bg-deep border-accent-purple/20 text-foreground"
+            />
+          </div>
+
           {/* payment method */}
           <div className="space-y-2">
             <p className="text-muted-base text-[10px] uppercase tracking-widest">Paid with</p>

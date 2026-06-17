@@ -1,6 +1,6 @@
 "use server";
 import { getDb, tags, expenses } from "@/lib/db";
-import { and, eq, sql, isNull } from "drizzle-orm";
+import { and, eq, sql, isNull, inArray } from "drizzle-orm";
 import { requireSession } from "@/lib/auth/session";
 import { revalidatePath } from "next/cache";
 import { generateText, Output } from "ai";
@@ -62,14 +62,46 @@ export async function getUserTags() {
   const db = getDb();
   const rows = await db.select().from(tags).where(eq(tags.userId, userId));
 
-  const seen = new Set<string>();
-  const keep: typeof rows = [];
-  for (const t of [...rows].sort((a, b) => a.id - b.id)) {
-    const key = `${t.name}|${t.emoji}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    keep.push(t);
+  // De-dup by name. When multiple rows share a name (seed history left some
+  // users with both "Food" and "Food 🍕"), prefer the one with an emoji, then
+  // the one with aliases set, then oldest id. Also schedules a real DB cleanup
+  // of the losers below.
+  const byName = new Map<string, typeof rows[number][]>();
+  for (const t of rows) {
+    const list = byName.get(t.name) ?? [];
+    list.push(t);
+    byName.set(t.name, list);
   }
+
+  const keep: typeof rows = [];
+  const loserIds: number[] = [];
+  for (const list of byName.values()) {
+    if (list.length === 1) { keep.push(list[0]); continue; }
+    const ranked = [...list].sort((a, b) => {
+      const aScore = (a.emoji ? 2 : 0) + (a.aliases ? 1 : 0);
+      const bScore = (b.emoji ? 2 : 0) + (b.aliases ? 1 : 0);
+      if (aScore !== bScore) return bScore - aScore;  // higher score first
+      return a.id - b.id;                              // tie-breaker: oldest id
+    });
+    keep.push(ranked[0]);
+    for (let i = 1; i < ranked.length; i++) loserIds.push(ranked[i].id);
+  }
+
+  // Best-effort permanent cleanup so the user isn't seeing dupes next time.
+  // Set tagId NULL on any expense pointing at a loser (so we don't cascade-
+  // delete history), then delete the loser rows themselves.
+  if (loserIds.length > 0) {
+    try {
+      await db.update(expenses).set({ tagId: null })
+        .where(and(eq(expenses.userId, userId), inArray(expenses.tagId, loserIds)));
+      await db.delete(tags)
+        .where(and(eq(tags.userId, userId), inArray(tags.id, loserIds)));
+    } catch {
+      // Silent — read path stays correct via the in-memory `keep` array.
+    }
+  }
+
+  keep.sort((a, b) => a.id - b.id);
   return keep;
 }
 
