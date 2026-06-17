@@ -40,8 +40,10 @@ export async function getCreditCardsWithBalances(): Promise<CardWithBalance[]> {
   const db = getDb();
   const userId = user.id!;
   const { year, month } = currentYearMonth();
+  // Last day varies by month (28/29/30/31). Day 0 of next month = last day of current month.
   const monthStart = `${year}-${String(month).padStart(2, "0")}-01`;
-  const monthEnd   = `${year}-${String(month).padStart(2, "0")}-31`;
+  const lastDay    = new Date(year, month, 0).getDate();
+  const monthEnd   = `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
 
   const cards = await db.select().from(creditCards).where(eq(creditCards.userId, userId));
 
