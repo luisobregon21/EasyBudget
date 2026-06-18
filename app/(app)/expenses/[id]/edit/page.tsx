@@ -2,6 +2,7 @@ import { getExpense, updateExpense } from "@/lib/actions/expenses";
 import { getUserTags } from "@/lib/actions/tags";
 import { getCreditCards } from "@/lib/actions/credit-cards";
 import { getUserBills } from "@/lib/actions/bills";
+import { getUserTrips } from "@/lib/actions/trips";
 import { notFound } from "next/navigation";
 import { PaymentMethodPicker } from "@/components/expenses/payment-method-picker";
 import { CurrencyPicker } from "@/components/expenses/currency-picker";
@@ -17,11 +18,12 @@ export default async function EditExpensePage({ params }: { params: Promise<{ id
   const { id } = await params;
   const expenseId = parseInt(id);
 
-  const [expense, tags, paymentMethods, bills] = await Promise.all([
+  const [expense, tags, paymentMethods, bills, trips] = await Promise.all([
     getExpense(expenseId),
     getUserTags(),
     getCreditCards(),
     getUserBills(),
+    getUserTrips(),
   ]);
 
   if (!expense) notFound();
@@ -106,6 +108,27 @@ export default async function EditExpensePage({ params }: { params: Promise<{ id
               <option value="none">— None —</option>
               {bills.map((b) => (
                 <option key={b.id} value={b.id}>{b.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {trips.length > 0 && (
+          <div className="space-y-1">
+            <Label htmlFor="tripId" className="text-muted-base text-[10px] uppercase tracking-widest">
+              Trip? <span className="normal-case text-muted-base font-normal">— optional, shows this expense on the trip page</span>
+            </Label>
+            <select
+              id="tripId"
+              name="tripId"
+              defaultValue={expense.tripId ? String(expense.tripId) : "none"}
+              className="w-full bg-bg-deep border border-accent-purple/20 text-foreground rounded-lg px-3 py-2 text-sm"
+            >
+              <option value="none">— None —</option>
+              {trips.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name} ({t.startDate}{t.endDate ? ` → ${t.endDate}` : " · ongoing"})
+                </option>
               ))}
             </select>
           </div>
