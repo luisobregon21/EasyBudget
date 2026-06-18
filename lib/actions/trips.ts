@@ -1,5 +1,5 @@
 "use server";
-import { getDb, trips, expenses, tags, months, incomeEntries, bills } from "@/lib/db";
+import { getDb, trips, expenses, tags, months, incomeEntries, bills, billPayments } from "@/lib/db";
 import { and, eq, desc, isNull, gte, lt, lte, or, inArray } from "drizzle-orm";
 import { requireSession } from "@/lib/auth/session";
 import { revalidatePath } from "next/cache";
@@ -192,38 +192,47 @@ export async function getTripFinancials(tripId: number) {
   const tripMonths = monthRows.filter((r) => inWindow(r.year, r.month));
   const monthIds = tripMonths.map((m) => m.id);
 
-  // 2) Sum income across those months (arrived + expected).
+  // 2) Income = arrived-only across the trip months. This is what's actually
+  //    in the account, not what's still pending. Expected income shouldn't
+  //    count toward what's spendable on the trip.
   let income = 0;
   if (monthIds.length > 0) {
-    const entries = await db.select({ amount: incomeEntries.amount, status: incomeEntries.status })
+    const entries = await db.select({ amount: incomeEntries.amount })
       .from(incomeEntries)
       .where(and(
         eq(incomeEntries.userId, userId),
         inArray(incomeEntries.monthId, monthIds),
-        inArray(incomeEntries.status, ["arrived", "expected"]),
+        eq(incomeEntries.status, "arrived"),
       ));
     income = entries.reduce((s, e) => s + e.amount, 0);
   }
-  if (income === 0) {
-    // Fallback to months.income column if no income_entries exist yet.
-    income = tripMonths.reduce((s, m) => s + (m.income ?? 0), 0);
-  }
 
-  // 3) Recurring deductions: walk every active bill, see if its effective
-  //    due day in each trip month is inside the trip's date range. Only
-  //    count "predictable" bills.
-  const allBills = await db.select().from(bills).where(and(
-    eq(bills.userId, userId),
-    eq(bills.active, true),
-  ));
-  const isPredictable = (b: typeof allBills[number]) =>
-    b.autoCharge || b.type === "subscription" || b.type === "credit_card" || b.type === "loan";
+  // 3) Recurring deductions: every active monthly/yearly/quarterly bill that
+  //    hits during the trip window. Subscriptions, utilities, rent, gym —
+  //    they all reduce available cash. Bills the user has explicitly skipped
+  //    for a given month are excluded.
+  const [allBills, skipRows] = await Promise.all([
+    db.select().from(bills).where(and(
+      eq(bills.userId, userId),
+      eq(bills.active, true),
+    )),
+    monthIds.length > 0
+      ? db.select({ billId: billPayments.billId, monthId: billPayments.monthId })
+          .from(billPayments)
+          .where(and(
+            eq(billPayments.userId, userId),
+            eq(billPayments.skipped, true),
+            inArray(billPayments.monthId, monthIds),
+          ))
+      : Promise.resolve([]),
+  ]);
+  const skippedSet = new Set(skipRows.map((r) => `${r.billId}|${r.monthId}`));
 
   let recurring = 0;
   const recurringItems: { name: string; amount: number }[] = [];
   for (const b of allBills) {
-    if (!isPredictable(b)) continue;
     for (const m of tripMonths) {
+      if (skippedSet.has(`${b.id}|${m.id}`)) continue;
       const day = getEffectiveDueDay({
         dueDay: b.dueDay,
         frequency: b.frequency,

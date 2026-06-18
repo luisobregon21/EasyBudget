@@ -145,7 +145,7 @@ export default async function TripDetailPage({
                 {formatCurrency(financials.available)}
               </p>
               <p className="text-muted-base text-[10px]">
-                {formatCurrency(financials.income)} income − {formatCurrency(financials.recurring)} recurring ({financials.monthCount} mo)
+                {formatCurrency(financials.income)} arrived − {formatCurrency(financials.recurring)} recurring ({financials.monthCount} mo)
               </p>
             </div>
             {financials.recurringItems.length > 0 && (
