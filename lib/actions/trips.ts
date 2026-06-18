@@ -1,5 +1,5 @@
 "use server";
-import { getDb, trips, expenses, tags, months, incomeEntries, bills, billPayments } from "@/lib/db";
+import { getDb, trips, expenses, tags, months, incomeEntries, bills, billPayments, tripBudgetLines } from "@/lib/db";
 import { and, eq, desc, isNull, gte, lt, lte, or, inArray } from "drizzle-orm";
 import { requireSession } from "@/lib/auth/session";
 import { revalidatePath } from "next/cache";
@@ -52,6 +52,7 @@ export async function getTripExpenses(tripId: number) {
     amountUsd:   expenses.amountUsd,
     date:        expenses.date,
     bucket:      expenses.bucket,
+    tagId:       expenses.tagId,
     tagName:     tags.name,
     tagEmoji:    tags.emoji,
   })
@@ -270,5 +271,97 @@ export async function getTripFinancials(tripId: number) {
       bills:   { pct: billsPct,   amount: available * (billsPct   / 100) },
     },
     monthCount: tripMonths.length,
+    // Trip-spendable = Available minus the savings hold. This is what the
+    // category-budget editor allocates against.
+    savingsHold: Math.round(available * (savingsPct / 100) * 100) / 100,
+    tripSpendable: Math.round(available * (1 - savingsPct / 100) * 100) / 100,
+    savingsPct,
   };
+}
+
+// ── Per-trip category budgets ────────────────────────────────────────────────
+
+/** Set or update a single category budget % for a trip. pct=0 → delete the row. */
+export async function setTripBudgetLine(
+  tripId: number,
+  tagId: number,
+  pct: number,
+): Promise<{ success: boolean; message: string }> {
+  try {
+    const user = await requireSession();
+    const userId = user.id!;
+    const db = getDb();
+
+    if (!Number.isFinite(pct) || pct < 0 || pct > 100) {
+      return { success: false, message: "Percentage must be between 0 and 100." };
+    }
+
+    // Sanity-check ownership of both the trip and the tag.
+    const [trip] = await db.select({ id: trips.id }).from(trips)
+      .where(and(eq(trips.id, tripId), eq(trips.userId, userId))).limit(1);
+    if (!trip) return { success: false, message: "Trip not found." };
+    const [tag] = await db.select({ id: tags.id }).from(tags)
+      .where(and(eq(tags.id, tagId), eq(tags.userId, userId))).limit(1);
+    if (!tag) return { success: false, message: "Tag not found." };
+
+    if (pct === 0) {
+      await db.delete(tripBudgetLines).where(and(
+        eq(tripBudgetLines.userId, userId),
+        eq(tripBudgetLines.tripId, tripId),
+        eq(tripBudgetLines.tagId, tagId),
+      ));
+    } else {
+      // Upsert via ON CONFLICT against the (tripId, tagId) unique index.
+      await db.insert(tripBudgetLines).values({ userId, tripId, tagId, pct })
+        .onConflictDoUpdate({
+          target: [tripBudgetLines.tripId, tripBudgetLines.tagId],
+          set: { pct },
+        });
+    }
+
+    revalidatePath(`/trips/${tripId}`);
+    return { success: true, message: "Budget updated." };
+  } catch (e) {
+    return { success: false, message: e instanceof Error ? e.message : "Failed to update budget." };
+  }
+}
+
+/** Hard-delete a category budget row. */
+export async function clearTripBudgetLine(
+  tripId: number,
+  tagId: number,
+): Promise<{ success: boolean; message: string }> {
+  try {
+    const user = await requireSession();
+    const userId = user.id!;
+    const db = getDb();
+    await db.delete(tripBudgetLines).where(and(
+      eq(tripBudgetLines.userId, userId),
+      eq(tripBudgetLines.tripId, tripId),
+      eq(tripBudgetLines.tagId, tagId),
+    ));
+    revalidatePath(`/trips/${tripId}`);
+    return { success: true, message: "Category removed." };
+  } catch (e) {
+    return { success: false, message: e instanceof Error ? e.message : "Failed to remove category." };
+  }
+}
+
+/** All budget lines for a trip joined with tag display data. */
+export async function getTripBudgetLines(tripId: number) {
+  const user = await requireSession();
+  const db = getDb();
+  return db.select({
+    id:        tripBudgetLines.id,
+    tagId:     tripBudgetLines.tagId,
+    pct:       tripBudgetLines.pct,
+    tagName:   tags.name,
+    tagEmoji:  tags.emoji,
+  })
+  .from(tripBudgetLines)
+  .innerJoin(tags, eq(tripBudgetLines.tagId, tags.id))
+  .where(and(
+    eq(tripBudgetLines.userId, user.id!),
+    eq(tripBudgetLines.tripId, tripId),
+  ));
 }

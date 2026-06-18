@@ -33,6 +33,20 @@ const DEFAULT_TAGS: { name: string; emoji: string; color: string; defaultBucket:
     aliases: ["savings","ahorro","ahorros","investment","brokerage","401k","ira","emergency fund"] },
   { name: "Other",         emoji: "📦", color: "#94a3b8", defaultBucket: "wants",
     aliases: [] },
+  // Trip-relevant tags. Available everywhere, but especially used in the
+  // trip budget editor since "Wants/Bills" is too coarse for trip planning.
+  { name: "Lodging",        emoji: "🏨", color: "#a78bfa", defaultBucket: "wants",
+    aliases: ["airbnb","hotel","hostel","motel","resort","room","stay","lodging","accommodation","hospedaje"] },
+  { name: "Groceries",      emoji: "🛒", color: "#34d399", defaultBucket: "wants",
+    aliases: ["grocery","groceries","supermarket","supermercado","walmart","costco","market","mercado","produce","bodega"] },
+  { name: "Dining Out",     emoji: "🍽️", color: "#f59e0b", defaultBucket: "wants",
+    aliases: ["restaurant","restaurante","dinner","lunch","brunch","cafe","café","coffee","starbucks","tip"] },
+  { name: "Special Events", emoji: "🎟️", color: "#ec4899", defaultBucket: "wants",
+    aliases: ["concert","show","tickets","event","festival","museum","tour","excursion","admission","entrada"] },
+  { name: "Shopping",       emoji: "🛍️", color: "#f472b6", defaultBucket: "wants",
+    aliases: ["shopping","souvenirs","gifts","regalo","regalos","mall","market shop"] },
+  { name: "Transportation", emoji: "🚕", color: "#34d399", defaultBucket: "wants",
+    aliases: ["uber","lyft","taxi","cab","bus","metro","train","ferry","ride","transporte"] },
 ];
 
 const BUCKET_COLOR: Record<Bucket, string> = {

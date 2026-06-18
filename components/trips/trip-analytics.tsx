@@ -16,6 +16,9 @@ interface Props {
   endDate: string | null;
   /** Optional fixed budget — drives the "pace vs expected" comparison */
   budgetUsd?: number | null;
+  /** Fallback when budgetUsd is null — used for plan-as-you-go trips so the
+   *  daily pace still has a target. Typically the trip-spendable total. */
+  expectedDailyTotal?: number | null;
 }
 
 const DAY_MS = 86_400_000;
@@ -46,7 +49,7 @@ function weekKey(d: Date): string {
   return `${date.getUTCFullYear()}-W${String(weekNum).padStart(2, "0")}`;
 }
 
-export function TripAnalytics({ expenses, startDate, endDate, budgetUsd }: Props) {
+export function TripAnalytics({ expenses, startDate, endDate, budgetUsd, expectedDailyTotal }: Props) {
   if (expenses.length === 0) return null;
 
   const todayStr = new Date().toISOString().slice(0, 10);
@@ -63,7 +66,14 @@ export function TripAnalytics({ expenses, startDate, endDate, budgetUsd }: Props
 
   const totalSpent = expenses.reduce((s, e) => s + (e.amountUsd ?? 0), 0);
   const dailyAvg = totalSpent / elapsedDays;
-  const expectedDaily = budgetUsd != null && budgetUsd > 0 ? budgetUsd / totalDays : null;
+  // Pace target: fixed budget if set, otherwise the trip-spendable total
+  // so plan-as-you-go trips still get a "% of plan" signal.
+  const expectedTotal = budgetUsd != null && budgetUsd > 0
+    ? budgetUsd
+    : expectedDailyTotal != null && expectedDailyTotal > 0
+      ? expectedDailyTotal
+      : null;
+  const expectedDaily = expectedTotal != null ? expectedTotal / totalDays : null;
   const pacePct = expectedDaily ? Math.round((dailyAvg / expectedDaily) * 100) : null;
 
   // Weekly bars

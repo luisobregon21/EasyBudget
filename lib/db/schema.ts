@@ -90,6 +90,20 @@ export const trips = pgTable("trips", {
   primaryCurrency: text("primary_currency").notNull().default("USD"),
 });
 
+// Per-trip category budgets, stored as percentages of "trip-spendable"
+// (= arrived income − recurring bills − savings hold). A row's dollar
+// amount is derived at read time so the budget stays in sync if recurring
+// changes (e.g. user skips a bill).
+export const tripBudgetLines = pgTable("trip_budget_lines", {
+  id:     serial("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  tripId: integer("trip_id").notNull().references(() => trips.id, { onDelete: "cascade" }),
+  tagId:  integer("tag_id").notNull().references(() => tags.id, { onDelete: "cascade" }),
+  pct:    real("pct").notNull(),  // 0–100
+}, (t) => ({
+  uniq: uniqueIndex("trip_budget_lines_trip_tag_idx").on(t.tripId, t.tagId),
+}));
+
 export const expenses = pgTable("expenses", {
   id:            serial("id").primaryKey(),
   userId:        text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),

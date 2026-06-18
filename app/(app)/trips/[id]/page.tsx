@@ -1,4 +1,5 @@
-import { getTrip, getTripExpenses, getTripFinancials } from "@/lib/actions/trips";
+import { getTrip, getTripExpenses, getTripFinancials, getTripBudgetLines } from "@/lib/actions/trips";
+import { getUserTags } from "@/lib/actions/tags";
 import { formatCurrency } from "@/lib/utils";
 import { notFound } from "next/navigation";
 import Link from "next/link";
@@ -7,6 +8,7 @@ import { EndTripForm } from "@/components/trips/end-trip-form";
 import { EditTripDatesForm } from "@/components/trips/edit-trip-dates-form";
 import { EditTripDetailsForm } from "@/components/trips/edit-trip-details-form";
 import { TripAnalytics } from "@/components/trips/trip-analytics";
+import { TripBudgetEditor } from "@/components/trips/trip-budget-editor";
 
 type TripExpense = Awaited<ReturnType<typeof getTripExpenses>>[number];
 
@@ -47,18 +49,19 @@ export default async function TripDetailPage({
   const trip = await getTrip(parseInt(id));
   if (!trip) notFound();
 
-  const [expenseRows, financials] = await Promise.all([
+  const [expenseRows, financials, budgetLines, allTags] = await Promise.all([
     getTripExpenses(trip.id),
     getTripFinancials(trip.id),
+    getTripBudgetLines(trip.id),
+    getUserTags(),
   ]);
   const totalSpent = expenseRows.reduce((s, e) => s + (e.amountUsd ?? 0), 0);
 
-  // Per-bucket spend within the trip (for the allocation card progress bars)
-  type Bucket = "savings" | "wants" | "bills";
-  const spentByBucket: Record<Bucket, number> = { savings: 0, wants: 0, bills: 0 };
+  // Per-tag spend within the trip (drives the category budget bars)
+  const spentByTag: Record<number, number> = {};
   for (const e of expenseRows) {
-    const b = (e.bucket as Bucket | null) ?? "wants";
-    if (b in spentByBucket) spentByBucket[b] += e.amountUsd ?? 0;
+    if (e.tagId == null) continue;
+    spentByTag[e.tagId] = (spentByTag[e.tagId] ?? 0) + (e.amountUsd ?? 0);
   }
   const hasBudget  = trip.budgetUsd != null;
   const remaining  = hasBudget ? trip.budgetUsd! - totalSpent : null;
@@ -134,11 +137,10 @@ export default async function TripDetailPage({
         )}
       </div>
 
-      {/* Available + bucket allocations during the trip. Renders for both
-          budget-set and plan-as-you-go trips since the breakdown is useful
-          regardless of whether there's a fixed budget. */}
+      {/* Available during trip — income arrived minus recurring bills.
+          Plus a collapsible breakdown of which bills hit. */}
       {financials && financials.monthCount > 0 && (
-        <div className="rounded-2xl bg-white/[0.03] border border-accent-purple/10 p-5 space-y-3">
+        <div className="rounded-2xl bg-white/[0.03] border border-accent-purple/10 p-5 space-y-1">
           <div className="flex justify-between items-start">
             <div>
               <p className="text-muted-base text-[10px] uppercase tracking-widest">Available during trip</p>
@@ -165,40 +167,20 @@ export default async function TripDetailPage({
               </details>
             )}
           </div>
-
-          {/* Three bucket cards */}
-          <div className="grid grid-cols-3 gap-2">
-            {(["savings", "wants", "bills"] as const).map((key) => {
-              const bucket = financials.buckets[key];
-              const spent = spentByBucket[key];
-              const fillPct = bucket.amount > 0 ? Math.min((spent / bucket.amount) * 100, 100) : 0;
-              const over = spent > bucket.amount;
-              const color = key === "savings" ? "#f59e0b" : key === "wants" ? "#a78bfa" : "#ec4899";
-              return (
-                <div key={key} className="rounded-xl bg-bg-deep border border-accent-purple/13 p-3">
-                  <div className="flex justify-between items-baseline">
-                    <span className="text-[9px] font-bold uppercase tracking-widest" style={{ color }}>
-                      {key === "savings" ? "Savings" : key === "wants" ? "Wants" : "Bills"}
-                    </span>
-                    <span className="text-[9px] text-muted-base font-mono">{bucket.pct}%</span>
-                  </div>
-                  <p className="text-foreground text-base font-bold font-mono mt-1 tabular-nums">
-                    {formatCurrency(spent)}
-                  </p>
-                  <p className="text-[9px] text-muted-base font-mono mt-0.5">
-                    / {formatCurrency(bucket.amount)}
-                  </p>
-                  <div className="h-1.5 rounded-full bg-white/[0.06] mt-2 overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all"
-                      style={{ width: `${fillPct}%`, background: over ? "#f87171" : color }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
         </div>
+      )}
+
+      {/* Trip categories: per-tag budget % editor against (Available − savings). */}
+      {financials && financials.monthCount > 0 && (
+        <TripBudgetEditor
+          tripId={trip.id}
+          tripSpendable={financials.tripSpendable}
+          savingsHold={financials.savingsHold}
+          savingsPct={financials.savingsPct}
+          lines={budgetLines}
+          allTags={allTags.map((t) => ({ id: t.id, name: t.name, emoji: t.emoji }))}
+          spentByTag={spentByTag}
+        />
       )}
 
       {/* Trends: weekly bars, top tags, daily pace vs expected */}
@@ -207,6 +189,7 @@ export default async function TripDetailPage({
         startDate={trip.startDate}
         endDate={trip.endDate ?? null}
         budgetUsd={trip.budgetUsd}
+        expectedDailyTotal={financials?.tripSpendable ?? null}
       />
 
       {/* Trip-aware Add Expense: opens the AppShell drawer with this trip pre-selected */}
