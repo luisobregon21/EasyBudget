@@ -1,7 +1,7 @@
 import { requireSession } from "@/lib/auth/session";
 import { AppShell } from "@/components/layout/app-shell";
 import { getCreditCards } from "@/lib/actions/credit-cards";
-import { getUserTags } from "@/lib/actions/tags";
+import { getUserTags, seedDefaultTags } from "@/lib/actions/tags";
 import { getUserBills, reconcileAutoChargedBills } from "@/lib/actions/bills";
 import { getActiveTrips } from "@/lib/actions/trips";
 import { getOrCreateMonth } from "@/lib/actions/months";
@@ -9,6 +9,11 @@ import { currentYearMonth } from "@/lib/utils";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   await requireSession();
+
+  // Seed any default tags the user is missing (idempotent — skips existing).
+  // Runs from the layout so new default tags ship to users on any page, not
+  // only when they happen to land on the dashboard.
+  await seedDefaultTags();
 
   // Materialize auto-charge subscriptions before fetching anything bill-related,
   // so the picker dropdown / bill statuses reflect freshly-posted charges.
