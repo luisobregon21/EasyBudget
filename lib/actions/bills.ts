@@ -359,26 +359,36 @@ export async function skipBillForMonth(
       ))
       .limit(1);
 
-    if (existing) {
-      // Already has a payment for this month — only convert to skipped if
-      // it's not already a (real) payment.
-      if (existing.skipped) {
-        return { success: true, message: `${bill.name} already skipped` };
-      }
-      return { success: false, message: `${bill.name} already has a payment this month` };
+    if (existing?.skipped) {
+      return { success: true, message: `${bill.name} already skipped` };
     }
 
     const today = new Date().toISOString().slice(0, 10);
-    await db.insert(billPayments).values({
-      userId,
-      billId,
-      monthId,
-      amount: 0,
-      date: today,
-      paidLate: false,
-      skipped: true,
-      note: null,
-    });
+
+    if (existing) {
+      // Convert an existing (real) payment into a skip. The user is telling
+      // us this month didn't actually go out — match their intent. Also clear
+      // any auto-logged expense tied to (bill, month).
+      await db.delete(expenses).where(and(
+        eq(expenses.userId, userId),
+        eq(expenses.billId, billId),
+        eq(expenses.monthId, monthId),
+      ));
+      await db.update(billPayments)
+        .set({ amount: 0, skipped: true, date: today, paidLate: false, note: null })
+        .where(eq(billPayments.id, existing.id));
+    } else {
+      await db.insert(billPayments).values({
+        userId,
+        billId,
+        monthId,
+        amount: 0,
+        date: today,
+        paidLate: false,
+        skipped: true,
+        note: null,
+      });
+    }
 
     revalidatePath("/bills");
     revalidatePath("/");

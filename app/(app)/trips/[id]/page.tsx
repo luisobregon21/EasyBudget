@@ -1,8 +1,8 @@
-import { getTrip, getTripExpenses } from "@/lib/actions/trips";
+import { getTrip, getTripExpenses, getTripFinancials } from "@/lib/actions/trips";
 import { formatCurrency } from "@/lib/utils";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { EndTripForm } from "@/components/trips/end-trip-form";
 import { EditTripDatesForm } from "@/components/trips/edit-trip-dates-form";
 import { EditTripDetailsForm } from "@/components/trips/edit-trip-details-form";
@@ -34,13 +34,31 @@ function weekLabel(key: string, expenses: TripExpense[]): string {
   return `${fmt(first)} – ${fmt(last)}`;
 }
 
-export default async function TripDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function TripDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ w?: string }>;
+}) {
   const { id } = await params;
+  const { w: weekParam } = await searchParams;
   const trip = await getTrip(parseInt(id));
   if (!trip) notFound();
 
-  const expenseRows = await getTripExpenses(trip.id);
+  const [expenseRows, financials] = await Promise.all([
+    getTripExpenses(trip.id),
+    getTripFinancials(trip.id),
+  ]);
   const totalSpent = expenseRows.reduce((s, e) => s + (e.amountUsd ?? 0), 0);
+
+  // Per-bucket spend within the trip (for the allocation card progress bars)
+  type Bucket = "savings" | "wants" | "bills";
+  const spentByBucket: Record<Bucket, number> = { savings: 0, wants: 0, bills: 0 };
+  for (const e of expenseRows) {
+    const b = (e.bucket as Bucket | null) ?? "wants";
+    if (b in spentByBucket) spentByBucket[b] += e.amountUsd ?? 0;
+  }
   const hasBudget  = trip.budgetUsd != null;
   const remaining  = hasBudget ? trip.budgetUsd! - totalSpent : null;
   const pct        = hasBudget && trip.budgetUsd! > 0 ? Math.min((totalSpent / trip.budgetUsd!) * 100, 100) : null;
@@ -54,7 +72,8 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
     list.push(e);
     byWeek.set(k, list);
   }
-  const weekKeys = [...byWeek.keys()].sort((a, b) => b.localeCompare(a));
+  // Ascending (oldest first) so the week paginator's ← goes back in time.
+  const weekKeys = [...byWeek.keys()].sort((a, b) => a.localeCompare(b));
 
   return (
     <div className="space-y-5">
@@ -114,6 +133,73 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
         )}
       </div>
 
+      {/* Available + bucket allocations during the trip. Renders for both
+          budget-set and plan-as-you-go trips since the breakdown is useful
+          regardless of whether there's a fixed budget. */}
+      {financials && financials.monthCount > 0 && (
+        <div className="rounded-2xl bg-white/[0.03] border border-accent-purple/10 p-5 space-y-3">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-muted-base text-[10px] uppercase tracking-widest">Available during trip</p>
+              <p className="gradient-text text-2xl font-black tracking-tight">
+                {formatCurrency(financials.available)}
+              </p>
+              <p className="text-muted-base text-[10px]">
+                {formatCurrency(financials.income)} income − {formatCurrency(financials.recurring)} recurring ({financials.monthCount} mo)
+              </p>
+            </div>
+            {financials.recurringItems.length > 0 && (
+              <details className="text-right cursor-pointer">
+                <summary className="text-muted-base text-[10px] uppercase tracking-widest hover:text-foreground transition-colors list-none">
+                  {financials.recurringItems.length} bills →
+                </summary>
+                <div className="mt-2 space-y-1 text-[10px] text-muted-base">
+                  {financials.recurringItems.map((r, i) => (
+                    <div key={i} className="flex justify-between gap-3">
+                      <span>{r.name}</span>
+                      <span className="font-mono tabular-nums">{formatCurrency(r.amount)}</span>
+                    </div>
+                  ))}
+                </div>
+              </details>
+            )}
+          </div>
+
+          {/* Three bucket cards */}
+          <div className="grid grid-cols-3 gap-2">
+            {(["savings", "wants", "bills"] as const).map((key) => {
+              const bucket = financials.buckets[key];
+              const spent = spentByBucket[key];
+              const fillPct = bucket.amount > 0 ? Math.min((spent / bucket.amount) * 100, 100) : 0;
+              const over = spent > bucket.amount;
+              const color = key === "savings" ? "#f59e0b" : key === "wants" ? "#a78bfa" : "#ec4899";
+              return (
+                <div key={key} className="rounded-xl bg-bg-deep border border-accent-purple/13 p-3">
+                  <div className="flex justify-between items-baseline">
+                    <span className="text-[9px] font-bold uppercase tracking-widest" style={{ color }}>
+                      {key === "savings" ? "Savings" : key === "wants" ? "Wants" : "Bills"}
+                    </span>
+                    <span className="text-[9px] text-muted-base font-mono">{bucket.pct}%</span>
+                  </div>
+                  <p className="text-foreground text-base font-bold font-mono mt-1 tabular-nums">
+                    {formatCurrency(spent)}
+                  </p>
+                  <p className="text-[9px] text-muted-base font-mono mt-0.5">
+                    / {formatCurrency(bucket.amount)}
+                  </p>
+                  <div className="h-1.5 rounded-full bg-white/[0.06] mt-2 overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all"
+                      style={{ width: `${fillPct}%`, background: over ? "#f87171" : color }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Trip-aware Add Expense: opens the AppShell drawer with this trip pre-selected */}
       <Link
         href={`/trips/${trip.id}?addExpense=1&trip=${trip.id}`}
@@ -129,47 +215,110 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
         {expenseRows.length === 0 && (
           <p className="text-muted-base text-sm text-center py-4">No expenses logged for this trip yet.</p>
         )}
-        {weekKeys.map((wk) => {
+
+        {weekKeys.length > 0 && (() => {
+          // Week pagination via ?w=N (0 = oldest, default = newest)
+          const requested = weekParam ? parseInt(weekParam) : weekKeys.length - 1;
+          const weekIdx = Math.max(0, Math.min(weekKeys.length - 1, isNaN(requested) ? weekKeys.length - 1 : requested));
+          const wk = weekKeys[weekIdx];
           const items = byWeek.get(wk)!;
           const weekTotal = items.reduce((s, e) => s + (e.amountUsd ?? 0), 0);
+
+          // Group items by date within this week
+          const byDay = new Map<string, typeof items>();
+          for (const e of items) {
+            const list = byDay.get(e.date) ?? [];
+            list.push(e);
+            byDay.set(e.date, list);
+          }
+          const dayKeys = [...byDay.keys()].sort((a, b) => b.localeCompare(a));
+
+          const hasPrev = weekIdx > 0;
+          const hasNext = weekIdx < weekKeys.length - 1;
+
           return (
-            <div key={wk} className="mb-4 last:mb-0">
-              <div className="flex items-baseline justify-between mb-1.5">
-                <p className="text-muted-base text-[10px] uppercase tracking-widest font-bold">{weekLabel(wk, items)}</p>
-                <p className="text-foreground text-xs font-mono tabular-nums">{formatCurrency(weekTotal)}</p>
-              </div>
-              <div className="divide-y divide-white/5">
-                {items.map((e) => (
+            <>
+              {/* Week paginator */}
+              <div className="flex items-center justify-between mb-4">
+                {hasPrev ? (
                   <Link
-                    key={e.id}
-                    href={`/expenses/${e.id}/edit`}
-                    className="flex justify-between items-center py-2.5 hover:bg-white/[0.02] transition-colors -mx-2 px-2 rounded-lg"
+                    href={`/trips/${trip.id}?w=${weekIdx - 1}`}
+                    className="p-1 text-muted-base hover:text-foreground transition-colors"
+                    aria-label="Previous week"
                   >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <span className="text-lg shrink-0">{e.tagEmoji ?? "📦"}</span>
-                      <div className="min-w-0">
-                        <p className="text-foreground text-sm truncate">{e.description}</p>
-                        <p className="text-muted-base text-[10px]">{e.date} · {e.tagName ?? "Uncategorized"}</p>
+                    <ChevronLeft size={18} />
+                  </Link>
+                ) : (
+                  <div className="w-7 h-7" />
+                )}
+                <div className="text-center">
+                  <p className="text-foreground text-sm font-semibold">{weekLabel(wk, items)}</p>
+                  <p className="text-muted-base text-[10px] font-mono tabular-nums">
+                    {formatCurrency(weekTotal)} · {items.length} item{items.length === 1 ? "" : "s"}
+                  </p>
+                </div>
+                {hasNext ? (
+                  <Link
+                    href={`/trips/${trip.id}?w=${weekIdx + 1}`}
+                    className="p-1 text-muted-base hover:text-foreground transition-colors"
+                    aria-label="Next week"
+                  >
+                    <ChevronRight size={18} />
+                  </Link>
+                ) : (
+                  <div className="w-7 h-7" />
+                )}
+              </div>
+
+              {/* Days within the week */}
+              <div className="space-y-4">
+                {dayKeys.map((dayKey) => {
+                  const dayItems = byDay.get(dayKey)!;
+                  const dayTotal = dayItems.reduce((s, e) => s + (e.amountUsd ?? 0), 0);
+                  return (
+                    <div key={dayKey}>
+                      <div className="flex items-baseline justify-between mb-1.5">
+                        <p className="text-muted-base text-[10px] uppercase tracking-widest font-bold">
+                          {new Date(dayKey + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
+                        </p>
+                        <p className="text-foreground text-xs font-mono tabular-nums">{formatCurrency(dayTotal)}</p>
+                      </div>
+                      <div className="divide-y divide-white/5">
+                        {dayItems.map((e) => (
+                          <Link
+                            key={e.id}
+                            href={`/expenses/${e.id}/edit`}
+                            className="flex justify-between items-center py-2.5 hover:bg-white/[0.02] transition-colors -mx-2 px-2 rounded-lg"
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              <span className="text-lg shrink-0">{e.tagEmoji ?? "📦"}</span>
+                              <div className="min-w-0">
+                                <p className="text-foreground text-sm truncate">{e.description}</p>
+                                <p className="text-muted-base text-[10px]">{e.tagName ?? "Uncategorized"}</p>
+                              </div>
+                            </div>
+                            <div className="text-right shrink-0">
+                              {e.currency !== "USD" ? (
+                                <>
+                                  <p className="text-red-400 text-sm font-semibold">
+                                    -{e.amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {e.currency}
+                                  </p>
+                                  <p className="text-muted-base text-[10px]">{formatCurrency(e.amountUsd ?? 0)} USD</p>
+                                </>
+                              ) : (
+                                <p className="text-red-400 text-sm font-semibold">-{formatCurrency(e.amountUsd ?? 0)}</p>
+                              )}
+                            </div>
+                          </Link>
+                        ))}
                       </div>
                     </div>
-                    <div className="text-right shrink-0">
-                      {e.currency !== "USD" ? (
-                        <>
-                          <p className="text-red-400 text-sm font-semibold">
-                            -{e.amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {e.currency}
-                          </p>
-                          <p className="text-muted-base text-[10px]">{formatCurrency(e.amountUsd ?? 0)} USD</p>
-                        </>
-                      ) : (
-                        <p className="text-red-400 text-sm font-semibold">-{formatCurrency(e.amountUsd ?? 0)}</p>
-                      )}
-                    </div>
-                  </Link>
-                ))}
+                  );
+                })}
               </div>
-            </div>
+            </>
           );
-        })}
+        })()}
       </div>
     </div>
   );
