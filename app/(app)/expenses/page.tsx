@@ -97,11 +97,16 @@ export default async function ExpensesPage({
       )}
 
       <div className="space-y-5">
-        {dates.map((date) => (
+        {dates.map((date) => {
+          const dayTotal = grouped[date].reduce((s, e) => s + e.amountUsd, 0);
+          return (
           <div key={date}>
-            <p className="text-muted-base text-[10px] uppercase tracking-widest mb-2">
-              {new Date(date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
-            </p>
+            <div className="flex items-baseline justify-between mb-2">
+              <p className="text-muted-base text-[10px] uppercase tracking-widest">
+                {new Date(date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
+              </p>
+              <p className="text-foreground text-xs font-mono tabular-nums">{formatCurrency(dayTotal)}</p>
+            </div>
             <div className="rounded-2xl bg-white/[0.03] border border-accent-purple/10 divide-y divide-white/5">
               {grouped[date].map((e) => {
                 const rowLink = (
@@ -162,7 +167,8 @@ export default async function ExpensesPage({
               })}
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 "use client";
-import { useActionState, useEffect, useRef } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Pencil } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -99,6 +99,8 @@ function EditRow({ tag, onDone }: EditProps) {
         />
       </div>
 
+      <EmojiPicker defaultValue={tag?.emoji ?? ""} />
+
       <div className="space-y-1.5">
         <Label className="text-muted-base text-[10px] uppercase tracking-widest">Bucket</Label>
         <div className="flex gap-2">
@@ -130,6 +132,62 @@ function EditRow({ tag, onDone }: EditProps) {
         </Button>
       </div>
     </form>
+  );
+}
+
+const COMMON_EMOJI = [
+  "🍕", "🍔", "🛒", "☕", "🍣", "🥑",
+  "🏠", "💡", "📺", "🎬", "🎮", "📚",
+  "🚗", "✈️", "🚌", "🛴", "⛽", "🛵",
+  "👗", "👟", "💄", "💇", "💪", "🩺",
+  "🎉", "🍻", "🎁", "🐶", "👨‍👩‍👧", "❤️",
+  "💰", "💳", "📦", "🌎", "⚽", "🎵",
+];
+
+function EmojiPicker({ defaultValue }: { defaultValue: string }) {
+  const [selected, setSelected] = useState(defaultValue);
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-muted-base text-[10px] uppercase tracking-widest">
+        Emoji <span className="normal-case text-muted-base font-normal">— optional, falls back to an auto icon</span>
+      </Label>
+      <input type="hidden" name="emoji" value={selected} />
+      <div className="flex items-center gap-2">
+        <Input
+          aria-label="Emoji"
+          value={selected}
+          onChange={(e) => setSelected(e.target.value)}
+          maxLength={4}
+          placeholder="—"
+          className="bg-bg-deep border-accent-purple/20 text-foreground w-16 text-center text-lg"
+        />
+        <p className="text-muted-base text-[10px]">Type any emoji, or pick one below.</p>
+      </div>
+      <div className="grid grid-cols-10 gap-1">
+        {COMMON_EMOJI.map((e) => (
+          <button
+            key={e}
+            type="button"
+            onClick={() => setSelected(e)}
+            className={`h-7 rounded text-base leading-none flex items-center justify-center transition-colors ${
+              selected === e ? "bg-accent-purple/30 ring-1 ring-accent-purple" : "bg-bg-deep hover:bg-white/[0.04]"
+            }`}
+          >
+            {e}
+          </button>
+        ))}
+        {selected && (
+          <button
+            type="button"
+            onClick={() => setSelected("")}
+            className="h-7 rounded bg-bg-deep hover:bg-red-500/10 text-muted-base hover:text-red-400 text-[10px] flex items-center justify-center"
+            aria-label="Clear emoji"
+          >
+            ✕
+          </button>
+        )}
+      </div>
+    </div>
   );
 }
 
