@@ -6,6 +6,7 @@ import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { EndTripForm } from "@/components/trips/end-trip-form";
 import { EditTripDatesForm } from "@/components/trips/edit-trip-dates-form";
 import { EditTripDetailsForm } from "@/components/trips/edit-trip-details-form";
+import { TripAnalytics } from "@/components/trips/trip-analytics";
 
 type TripExpense = Awaited<ReturnType<typeof getTripExpenses>>[number];
 
@@ -199,6 +200,14 @@ export default async function TripDetailPage({
           </div>
         </div>
       )}
+
+      {/* Trends: weekly bars, top tags, daily pace vs expected */}
+      <TripAnalytics
+        expenses={expenseRows}
+        startDate={trip.startDate}
+        endDate={trip.endDate ?? null}
+        budgetUsd={trip.budgetUsd}
+      />
 
       {/* Trip-aware Add Expense: opens the AppShell drawer with this trip pre-selected */}
       <Link
