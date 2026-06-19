@@ -1,10 +1,16 @@
 "use server";
-import { getDb, trips, expenses, tags, months, incomeEntries, bills, billPayments, tripBudgetLines } from "@/lib/db";
+import { getDb, trips, expenses, tags, months, incomeEntries, bills, billPayments, tripCategoryBudgets } from "@/lib/db";
 import { and, eq, desc, isNull, gte, lt, lte, or, inArray } from "drizzle-orm";
 import { requireSession } from "@/lib/auth/session";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getEffectiveDueDay } from "@/lib/bill-dates";
+import {
+  TRIP_CATEGORIES,
+  TRIP_CATEGORY_META,
+  tripCategoryForTagName,
+  type TripCategory,
+} from "@/lib/trip-categories";
 
 export async function getActiveTrips() {
   const user = await requireSession();
@@ -250,72 +256,119 @@ export async function getTripFinancials(tripId: number) {
     }
   }
 
-  // 4) Available + bucket allocations (avg of per-month pcts, fall back to 20/10/70)
-  const available = Math.max(0, income - recurring);
-  const avgPct = (key: "savingsPct" | "wantsPct" | "billsPct") =>
-    tripMonths.length > 0
-      ? tripMonths.reduce((s, m) => s + (m[key] ?? 0), 0) / tripMonths.length
-      : key === "savingsPct" ? 20 : key === "wantsPct" ? 10 : 70;
-  const savingsPct = Math.round(avgPct("savingsPct"));
-  const wantsPct   = Math.round(avgPct("wantsPct"));
-  const billsPct   = Math.round(avgPct("billsPct"));
+  // 4) Trip-spendable = arrivedIncome − recurring − savingsHold.
+  //    Savings % comes from the user's overall budget (avg of per-month
+  //    months.savingsPct, fall back to 20). Savings is computed against the
+  //    full arrived income, NOT (income − recurring), because savings is held
+  //    off the top of paychecks, before bills get paid.
+  const avgSavingsPct = tripMonths.length > 0
+    ? tripMonths.reduce((s, m) => s + (m.savingsPct ?? 0), 0) / tripMonths.length
+    : 20;
+  const savingsPct = Math.round(avgSavingsPct);
+  const savingsHold = Math.round(income * (savingsPct / 100) * 100) / 100;
+  const tripSpendable = Math.max(0, income - recurring - savingsHold);
+
+  // 5) Per-category budgets (sparse) + per-category spend (sum of trip
+  //    expenses grouped by mapped category).
+  const [budgetRows, tripExpenseRows] = await Promise.all([
+    db.select({ category: tripCategoryBudgets.category, amount: tripCategoryBudgets.amount })
+      .from(tripCategoryBudgets)
+      .where(and(
+        eq(tripCategoryBudgets.userId, userId),
+        eq(tripCategoryBudgets.tripId, tripId),
+      )),
+    db.select({
+      amountUsd: expenses.amountUsd,
+      tagName:   tags.name,
+    })
+      .from(expenses)
+      .leftJoin(tags, eq(expenses.tagId, tags.id))
+      .where(and(
+        eq(expenses.userId, userId),
+        eq(expenses.tripId, tripId),
+      )),
+  ]);
+
+  const budgetByCategory = new Map<TripCategory, number>();
+  for (const row of budgetRows) {
+    budgetByCategory.set(row.category as TripCategory, row.amount);
+  }
+
+  const spentByCategory = new Map<TripCategory, number>();
+  for (const cat of TRIP_CATEGORIES) spentByCategory.set(cat, 0);
+  for (const e of tripExpenseRows) {
+    const cat = tripCategoryForTagName(e.tagName);
+    spentByCategory.set(cat, (spentByCategory.get(cat) ?? 0) + (e.amountUsd ?? 0));
+  }
+
+  const categories = TRIP_CATEGORIES.map((cat) => {
+    const meta = TRIP_CATEGORY_META[cat];
+    return {
+      category: cat,
+      label:    meta.label,
+      emoji:    meta.emoji,
+      color:    meta.color,
+      budget:   Math.round((budgetByCategory.get(cat) ?? 0) * 100) / 100,
+      spent:    Math.round((spentByCategory.get(cat) ?? 0) * 100) / 100,
+    };
+  });
+
+  const totalBudgeted = Math.round(categories.reduce((s, c) => s + c.budget, 0) * 100) / 100;
+  const totalSpent    = Math.round(categories.reduce((s, c) => s + c.spent,  0) * 100) / 100;
 
   return {
     income,
     recurring,
     recurringItems,
-    available,
-    buckets: {
-      savings: { pct: savingsPct, amount: available * (savingsPct / 100) },
-      wants:   { pct: wantsPct,   amount: available * (wantsPct   / 100) },
-      bills:   { pct: billsPct,   amount: available * (billsPct   / 100) },
-    },
-    monthCount: tripMonths.length,
-    // Trip-spendable = Available minus the savings hold. This is what the
-    // category-budget editor allocates against.
-    savingsHold: Math.round(available * (savingsPct / 100) * 100) / 100,
-    tripSpendable: Math.round(available * (1 - savingsPct / 100) * 100) / 100,
     savingsPct,
+    savingsHold,
+    tripSpendable,
+    monthCount: tripMonths.length,
+    categories,
+    totalBudgeted,
+    totalSpent,
   };
 }
 
 // ── Per-trip category budgets ────────────────────────────────────────────────
 
-/** Set or update a single category budget % for a trip. pct=0 → delete the row. */
-export async function setTripBudgetLine(
+const VALID_CATEGORIES = new Set<TripCategory>(TRIP_CATEGORIES);
+
+/** Set or update a category budget for a trip. amount<=0 → delete the row. */
+export async function setTripCategoryBudget(
   tripId: number,
-  tagId: number,
-  pct: number,
+  category: TripCategory,
+  amount: number,
 ): Promise<{ success: boolean; message: string }> {
   try {
     const user = await requireSession();
     const userId = user.id!;
     const db = getDb();
 
-    if (!Number.isFinite(pct) || pct < 0 || pct > 100) {
-      return { success: false, message: "Percentage must be between 0 and 100." };
+    if (!VALID_CATEGORIES.has(category)) {
+      return { success: false, message: "Invalid category." };
+    }
+    if (!Number.isFinite(amount) || amount < 0) {
+      return { success: false, message: "Amount must be 0 or positive." };
     }
 
-    // Sanity-check ownership of both the trip and the tag.
+    // Ownership check on the trip.
     const [trip] = await db.select({ id: trips.id }).from(trips)
       .where(and(eq(trips.id, tripId), eq(trips.userId, userId))).limit(1);
     if (!trip) return { success: false, message: "Trip not found." };
-    const [tag] = await db.select({ id: tags.id }).from(tags)
-      .where(and(eq(tags.id, tagId), eq(tags.userId, userId))).limit(1);
-    if (!tag) return { success: false, message: "Tag not found." };
 
-    if (pct === 0) {
-      await db.delete(tripBudgetLines).where(and(
-        eq(tripBudgetLines.userId, userId),
-        eq(tripBudgetLines.tripId, tripId),
-        eq(tripBudgetLines.tagId, tagId),
+    if (amount === 0) {
+      await db.delete(tripCategoryBudgets).where(and(
+        eq(tripCategoryBudgets.userId, userId),
+        eq(tripCategoryBudgets.tripId, tripId),
+        eq(tripCategoryBudgets.category, category),
       ));
     } else {
-      // Upsert via ON CONFLICT against the (tripId, tagId) unique index.
-      await db.insert(tripBudgetLines).values({ userId, tripId, tagId, pct })
+      // Upsert via ON CONFLICT against (tripId, category) unique index.
+      await db.insert(tripCategoryBudgets).values({ userId, tripId, category, amount })
         .onConflictDoUpdate({
-          target: [tripBudgetLines.tripId, tripBudgetLines.tagId],
-          set: { pct },
+          target: [tripCategoryBudgets.tripId, tripCategoryBudgets.category],
+          set: { amount },
         });
     }
 
@@ -327,41 +380,22 @@ export async function setTripBudgetLine(
 }
 
 /** Hard-delete a category budget row. */
-export async function clearTripBudgetLine(
+export async function clearTripCategoryBudget(
   tripId: number,
-  tagId: number,
+  category: TripCategory,
 ): Promise<{ success: boolean; message: string }> {
   try {
     const user = await requireSession();
     const userId = user.id!;
     const db = getDb();
-    await db.delete(tripBudgetLines).where(and(
-      eq(tripBudgetLines.userId, userId),
-      eq(tripBudgetLines.tripId, tripId),
-      eq(tripBudgetLines.tagId, tagId),
+    await db.delete(tripCategoryBudgets).where(and(
+      eq(tripCategoryBudgets.userId, userId),
+      eq(tripCategoryBudgets.tripId, tripId),
+      eq(tripCategoryBudgets.category, category),
     ));
     revalidatePath(`/trips/${tripId}`);
-    return { success: true, message: "Category removed." };
+    return { success: true, message: "Category cleared." };
   } catch (e) {
-    return { success: false, message: e instanceof Error ? e.message : "Failed to remove category." };
+    return { success: false, message: e instanceof Error ? e.message : "Failed to clear category." };
   }
-}
-
-/** All budget lines for a trip joined with tag display data. */
-export async function getTripBudgetLines(tripId: number) {
-  const user = await requireSession();
-  const db = getDb();
-  return db.select({
-    id:        tripBudgetLines.id,
-    tagId:     tripBudgetLines.tagId,
-    pct:       tripBudgetLines.pct,
-    tagName:   tags.name,
-    tagEmoji:  tags.emoji,
-  })
-  .from(tripBudgetLines)
-  .innerJoin(tags, eq(tripBudgetLines.tagId, tags.id))
-  .where(and(
-    eq(tripBudgetLines.userId, user.id!),
-    eq(tripBudgetLines.tripId, tripId),
-  ));
 }

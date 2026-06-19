@@ -1,5 +1,4 @@
-import { getTrip, getTripExpenses, getTripFinancials, getTripBudgetLines } from "@/lib/actions/trips";
-import { getUserTags } from "@/lib/actions/tags";
+import { getTrip, getTripExpenses, getTripFinancials } from "@/lib/actions/trips";
 import { formatCurrency } from "@/lib/utils";
 import { notFound } from "next/navigation";
 import Link from "next/link";
@@ -8,7 +7,7 @@ import { EndTripForm } from "@/components/trips/end-trip-form";
 import { EditTripDatesForm } from "@/components/trips/edit-trip-dates-form";
 import { EditTripDetailsForm } from "@/components/trips/edit-trip-details-form";
 import { TripAnalytics } from "@/components/trips/trip-analytics";
-import { TripBudgetEditor } from "@/components/trips/trip-budget-editor";
+import { TripCategoryBudgets } from "@/components/trips/trip-category-budgets";
 
 type TripExpense = Awaited<ReturnType<typeof getTripExpenses>>[number];
 
@@ -49,20 +48,11 @@ export default async function TripDetailPage({
   const trip = await getTrip(parseInt(id));
   if (!trip) notFound();
 
-  const [expenseRows, financials, budgetLines, allTags] = await Promise.all([
+  const [expenseRows, financials] = await Promise.all([
     getTripExpenses(trip.id),
     getTripFinancials(trip.id),
-    getTripBudgetLines(trip.id),
-    getUserTags(),
   ]);
-  const totalSpent = expenseRows.reduce((s, e) => s + (e.amountUsd ?? 0), 0);
-
-  // Per-tag spend within the trip (drives the category budget bars)
-  const spentByTag: Record<number, number> = {};
-  for (const e of expenseRows) {
-    if (e.tagId == null) continue;
-    spentByTag[e.tagId] = (spentByTag[e.tagId] ?? 0) + (e.amountUsd ?? 0);
-  }
+  const totalSpent = expenseRows.reduce((s: number, e: { amountUsd: number | null }) => s + (e.amountUsd ?? 0), 0);
   const hasBudget  = trip.budgetUsd != null;
   const remaining  = hasBudget ? trip.budgetUsd! - totalSpent : null;
   const pct        = hasBudget && trip.budgetUsd! > 0 ? Math.min((totalSpent / trip.budgetUsd!) * 100, 100) : null;
@@ -137,49 +127,82 @@ export default async function TripDetailPage({
         )}
       </div>
 
-      {/* Available during trip — income arrived minus recurring bills.
-          Plus a collapsible breakdown of which bills hit. */}
-      {financials && financials.monthCount > 0 && (
-        <div className="rounded-2xl bg-white/[0.03] border border-accent-purple/10 p-5 space-y-1">
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="text-muted-base text-[10px] uppercase tracking-widest">Available during trip</p>
-              <p className="gradient-text text-2xl font-black tracking-tight">
-                {formatCurrency(financials.available)}
-              </p>
-              <p className="text-muted-base text-[10px]">
-                {formatCurrency(financials.income)} arrived − {formatCurrency(financials.recurring)} recurring ({financials.monthCount} mo)
-              </p>
+      {/* Trip-spendable header: arrived − recurring − savings hold.
+          Overall progress bar shows spent vs spendable. */}
+      {financials && financials.monthCount > 0 && (() => {
+        const spendable = financials.tripSpendable;
+        const tripSpent = financials.totalSpent;
+        const usedPct   = spendable > 0 ? Math.min((tripSpent / spendable) * 100, 100) : 0;
+        const over      = tripSpent > spendable && spendable > 0;
+        const remaining = Math.max(0, spendable - tripSpent);
+        return (
+          <div className="rounded-2xl bg-white/[0.03] border border-accent-purple/10 p-5 space-y-3">
+            <div className="flex justify-between items-start">
+              <div className="min-w-0">
+                <p className="text-muted-base text-[10px] uppercase tracking-widest">Trip-spendable</p>
+                <p className="gradient-text text-3xl font-black tracking-tight">
+                  {formatCurrency(spendable)}
+                </p>
+              </div>
+              <div className="text-right shrink-0">
+                <p className={`text-sm font-bold ${over ? "text-red-400" : "text-foreground"}`}>
+                  {formatCurrency(tripSpent)} spent
+                </p>
+                <p className="text-muted-base text-[10px]">
+                  {over
+                    ? `${formatCurrency(tripSpent - spendable)} over`
+                    : `${formatCurrency(remaining)} left`
+                  }
+                </p>
+              </div>
             </div>
-            {financials.recurringItems.length > 0 && (
-              <details className="text-right cursor-pointer">
-                <summary className="text-muted-base text-[10px] uppercase tracking-widest hover:text-foreground transition-colors list-none">
-                  {financials.recurringItems.length} bills →
-                </summary>
-                <div className="mt-2 space-y-1 text-[10px] text-muted-base">
-                  {financials.recurringItems.map((r, i) => (
-                    <div key={i} className="flex justify-between gap-3">
-                      <span>{r.name}</span>
-                      <span className="font-mono tabular-nums">{formatCurrency(r.amount)}</span>
-                    </div>
-                  ))}
-                </div>
-              </details>
-            )}
-          </div>
-        </div>
-      )}
 
-      {/* Trip categories: per-tag budget % editor against (Available − savings). */}
+            <div className="h-2 rounded-full bg-white/[0.08] overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all"
+                style={{
+                  width: `${usedPct}%`,
+                  background: over ? "#f87171" : "linear-gradient(90deg, #fbbf24, #ec4899)",
+                }}
+              />
+            </div>
+
+            {/* How this was calculated */}
+            <details className="cursor-pointer text-[10px] text-muted-base">
+              <summary className="hover:text-foreground transition-colors list-none">
+                How this was calculated ↓
+              </summary>
+              <div className="mt-2 space-y-0.5 font-mono tabular-nums">
+                <div className="flex justify-between"><span>arrived income</span><span>{formatCurrency(financials.income)}</span></div>
+                <div className="flex justify-between"><span>− recurring ({financials.recurringItems.length} bills)</span><span>−{formatCurrency(financials.recurring)}</span></div>
+                <div className="flex justify-between"><span>− savings hold ({financials.savingsPct}%)</span><span>−{formatCurrency(financials.savingsHold)}</span></div>
+                <div className="flex justify-between border-t border-white/10 pt-1 mt-1 text-foreground font-bold">
+                  <span>spendable</span><span>{formatCurrency(spendable)}</span>
+                </div>
+                {financials.recurringItems.length > 0 && (
+                  <div className="mt-2 pt-2 border-t border-white/10 space-y-0.5">
+                    <p className="text-muted-base/70 uppercase tracking-widest text-[9px] font-bold mb-1">Recurring bills</p>
+                    {financials.recurringItems.map((r, i) => (
+                      <div key={i} className="flex justify-between">
+                        <span>{r.name}</span>
+                        <span>{formatCurrency(r.amount)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </details>
+          </div>
+        );
+      })()}
+
+      {/* Per-category budgets — fixed set of 8 trip categories. */}
       {financials && financials.monthCount > 0 && (
-        <TripBudgetEditor
+        <TripCategoryBudgets
           tripId={trip.id}
           tripSpendable={financials.tripSpendable}
-          savingsHold={financials.savingsHold}
-          savingsPct={financials.savingsPct}
-          lines={budgetLines}
-          allTags={allTags.map((t) => ({ id: t.id, name: t.name, emoji: t.emoji }))}
-          spentByTag={spentByTag}
+          categories={financials.categories}
+          totalBudgeted={financials.totalBudgeted}
         />
       )}
 

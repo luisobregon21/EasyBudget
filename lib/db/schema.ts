@@ -90,20 +90,6 @@ export const trips = pgTable("trips", {
   primaryCurrency: text("primary_currency").notNull().default("USD"),
 });
 
-// Per-trip category budgets, stored as percentages of "trip-spendable"
-// (= arrived income − recurring bills − savings hold). A row's dollar
-// amount is derived at read time so the budget stays in sync if recurring
-// changes (e.g. user skips a bill).
-export const tripBudgetLines = pgTable("trip_budget_lines", {
-  id:     serial("id").primaryKey(),
-  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  tripId: integer("trip_id").notNull().references(() => trips.id, { onDelete: "cascade" }),
-  tagId:  integer("tag_id").notNull().references(() => tags.id, { onDelete: "cascade" }),
-  pct:    real("pct").notNull(),  // 0–100
-}, (t) => ({
-  uniq: uniqueIndex("trip_budget_lines_trip_tag_idx").on(t.tripId, t.tagId),
-}));
-
 export const expenses = pgTable("expenses", {
   id:            serial("id").primaryKey(),
   userId:        text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
@@ -199,6 +185,19 @@ export const savingsAllocations = pgTable("savings_allocations", {
   percentage: integer("percentage").notNull(),
   sortOrder:  integer("sort_order").notNull().default(0),
 });
+
+// NEW: per-trip, per-category budget allocations (Lodging, Dining Out, etc).
+// Rows are sparse — only categories the user has explicitly budgeted appear.
+export const tripCategoryBudgets = pgTable("trip_category_budgets", {
+  id:        serial("id").primaryKey(),
+  tripId:    integer("trip_id").notNull().references(() => trips.id, { onDelete: "cascade" }),
+  userId:    text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  category:  text("category").$type<"housing" | "transport" | "night_out" | "dining_out" | "groceries" | "shopping" | "lodging" | "other">().notNull(),
+  amount:    real("amount").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => ({
+  uniq: uniqueIndex("trip_category_budgets_trip_category_idx").on(t.tripId, t.category),
+}));
 
 // NEW: credit card payments (transfers, not expenses)
 export const cardPayments = pgTable("card_payments", {
